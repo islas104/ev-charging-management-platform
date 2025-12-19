@@ -5,6 +5,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { OcppModule } from './modules/ocpp/ocpp.module';
+import { AdminController } from './modules/admin/admin.controller';
 
 @Module({
   imports: [
@@ -25,7 +26,10 @@ import { OcppModule } from './modules/ocpp/ocpp.module';
     }),
     OcppModule,
   ],
-  controllers: [AppController],
+  controllers: [
+    AppController,
+    AdminController, // ✅ REQUIRED for admin dashboard
+  ],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {

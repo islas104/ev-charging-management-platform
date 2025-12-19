@@ -10,6 +10,7 @@ import { IncomingMessage } from 'http';
 
 import { resolveOcppProtocol } from './ocpp-protocol.resolver';
 import { routeOcppMessage } from './ocpp-message.router';
+import { chargers } from '../ocpp.state';
 
 @WebSocketGateway({
   path: '/ocpp',
@@ -24,7 +25,7 @@ export class OcppGateway
 
   handleConnection(client: WebSocket, request: IncomingMessage) {
     const url = new URL(request.url ?? '', 'http://localhost');
-    const chargerId = url.searchParams.get('chargerId');
+    const chargerId = url.searchParams.get('chargerId') ?? 'UNKNOWN';
 
     const protocol = resolveOcppProtocol(
       request.headers['sec-websocket-protocol']
@@ -32,6 +33,13 @@ export class OcppGateway
         .split(',')
         .map((p) => p.trim()),
     );
+
+    // 🔹 Track charger state for admin dashboard
+    chargers.set(chargerId, {
+      chargerId,
+      connectedAt: new Date().toISOString(),
+      registered: false,
+    });
 
     (client as any).ocpp = { chargerId, protocol };
 
@@ -51,12 +59,14 @@ export class OcppGateway
 
   handleDisconnect(client: WebSocket) {
     const meta = (client as any).ocpp;
+    const chargerId = meta?.chargerId;
+
+    if (chargerId) {
+      chargers.delete(chargerId);
+    }
 
     this.logger.log(
-      {
-        chargerId: meta?.chargerId,
-        protocol: meta?.protocol,
-      },
+      { chargerId },
       'OCPP charger disconnected',
     );
   }
