@@ -3,6 +3,12 @@ import { Logger } from 'nestjs-pino';
 import { OcppMessageType } from '../types/ocpp-message';
 import { HeartbeatResponse } from '../types/heartbeat';
 import { BootNotificationResponse } from '../types/boot-notification';
+import {
+  StartTransactionResponse,
+  StopTransactionResponse,
+} from '../types/transaction';
+
+let transactionCounter = 1000;
 
 export function routeOcppMessage(
   socket: WebSocket,
@@ -20,9 +26,7 @@ export function routeOcppMessage(
 
   const [messageType, messageId, action, payload] = message;
 
-  if (messageType !== OcppMessageType.CALL) {
-    return;
-  }
+  if (messageType !== OcppMessageType.CALL) return;
 
   /* ---------- Heartbeat ---------- */
   if (action === 'Heartbeat') {
@@ -31,11 +35,7 @@ export function routeOcppMessage(
     };
 
     socket.send(
-      JSON.stringify([
-        OcppMessageType.CALL_RESULT,
-        messageId,
-        response,
-      ]),
+      JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
     );
 
     logger.log('Heartbeat handled');
@@ -51,11 +51,7 @@ export function routeOcppMessage(
     };
 
     socket.send(
-      JSON.stringify([
-        OcppMessageType.CALL_RESULT,
-        messageId,
-        response,
-      ]),
+      JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
     );
 
     logger.log(
@@ -64,6 +60,49 @@ export function routeOcppMessage(
         model: payload?.chargePointModel,
       },
       'BootNotification accepted',
+    );
+    return;
+  }
+
+  /* ---------- StartTransaction ---------- */
+  if (action === 'StartTransaction') {
+    const transactionId = ++transactionCounter;
+
+    const response: StartTransactionResponse = {
+      transactionId,
+      idTagInfo: { status: 'Accepted' },
+    };
+
+    socket.send(
+      JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
+    );
+
+    logger.log(
+      {
+        transactionId,
+        idTag: payload?.idTag,
+      },
+      'Transaction started',
+    );
+    return;
+  }
+
+  /* ---------- StopTransaction ---------- */
+  if (action === 'StopTransaction') {
+    const response: StopTransactionResponse = {
+      idTagInfo: { status: 'Accepted' },
+    };
+
+    socket.send(
+      JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
+    );
+
+    logger.log(
+      {
+        transactionId: payload?.transactionId,
+        reason: payload?.reason,
+      },
+      'Transaction stopped',
     );
   }
 }

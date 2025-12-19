@@ -2,90 +2,81 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>OCPP Demo</title>
+  <title>OCPP Full Session Demo</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
-    }
-    button {
-      padding: 0.5rem 1rem;
-      margin-right: 0.5rem;
-      margin-top: 1rem;
-    }
-    pre {
-      background: #f4f4f4;
-      padding: 1rem;
-      margin-top: 1rem;
-      min-height: 150px;
-    }
+    body { font-family: Arial; padding: 2rem; }
+    button { margin-right: 0.5rem; margin-top: 0.5rem; }
+    pre { background: #f4f4f4; padding: 1rem; min-height: 180px; }
   </style>
 </head>
 <body>
   <h2>EV Charging Platform – OCPP Demo</h2>
-
-  <p><strong>Charger ID:</strong> DEMO-CHARGER-001</p>
+  <p><strong>Charger:</strong> DEMO-CHARGER-001</p>
 
   <button onclick="connect()">Connect</button>
-  <button onclick="sendBoot()">Send BootNotification</button>
-  <button onclick="sendHeartbeat()">Send Heartbeat</button>
+  <button onclick="boot()">Boot</button>
+  <button onclick="start()">Start Transaction</button>
+  <button onclick="stop()">Stop Transaction</button>
+  <button onclick="heartbeat()">Heartbeat</button>
 
   <pre id="log"></pre>
 
   <script>
     let socket;
+    let activeTransactionId;
     const logEl = document.getElementById('log');
 
-    function log(message) {
-      logEl.textContent += message + '\n';
-    }
+    const log = (m) => logEl.textContent += m + '\n';
+    const id = () => Math.random().toString(36).substring(2, 8);
 
     function connect() {
       socket = new WebSocket(
         'ws://localhost:3000/ocpp?chargerId=DEMO-CHARGER-001',
         ['ocpp1.6']
       );
-
-      socket.onopen = () => log('WebSocket connected');
-      socket.onmessage = (e) => log('Received: ' + e.data);
-      socket.onclose = () => log('WebSocket disconnected');
-      socket.onerror = () => log('WebSocket error');
-    }
-
-    function sendBoot() {
-      if (!socket || socket.readyState !== WebSocket.OPEN) {
-        log('Socket not connected');
-        return;
-      }
-
-      const id = Math.random().toString(36).substring(2, 8);
-
-      const boot = [
-        2,
-        id,
-        'BootNotification',
-        {
-          chargePointVendor: 'CloudTunnel',
-          chargePointModel: 'CT-AC-7KW',
+      socket.onopen = () => log('Connected');
+      socket.onmessage = e => {
+        log('Received: ' + e.data);
+        const msg = JSON.parse(e.data);
+        if (msg[2]?.transactionId) {
+          activeTransactionId = msg[2].transactionId;
         }
-      ];
-
-      socket.send(JSON.stringify(boot));
-      log('Sent BootNotification: ' + JSON.stringify(boot));
+      };
     }
 
-    function sendHeartbeat() {
-      if (!socket || socket.readyState !== WebSocket.OPEN) {
-        log('Socket not connected');
-        return;
-      }
+    function boot() {
+      socket.send(JSON.stringify([
+        2, id(), 'BootNotification',
+        { chargePointVendor: 'CloudTunnel', chargePointModel: 'CT-AC-7KW' }
+      ]));
+    }
 
-      const id = Math.random().toString(36).substring(2, 8);
+    function start() {
+      socket.send(JSON.stringify([
+        2, id(), 'StartTransaction',
+        {
+          connectorId: 1,
+          idTag: 'RFID-12345',
+          meterStart: 0,
+          timestamp: new Date().toISOString()
+        }
+      ]));
+    }
 
-      const heartbeat = [2, id, 'Heartbeat', {}];
+    function stop() {
+      socket.send(JSON.stringify([
+        2, id(), 'StopTransaction',
+        {
+          transactionId: activeTransactionId,
+          meterStop: 12,
+          timestamp: new Date().toISOString(),
+          reason: 'Local'
+        }
+      ]));
+    }
 
-      socket.send(JSON.stringify(heartbeat));
-      log('Sent Heartbeat: ' + JSON.stringify(heartbeat));
+    function heartbeat() {
+      socket.send(JSON.stringify([2, id(), 'Heartbeat', {}]));
     }
   </script>
 </body>
