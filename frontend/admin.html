@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>EV Charging Platform – Admin</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f6f7f9;
+      padding: 2rem;
+      color: #222;
+    }
+
+    h1 {
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    th, td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background: #fafafa;
+      font-weight: 600;
+      color: #444;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge {
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .ok {
+      background: #e6f4ea;
+      color: #137333;
+    }
+
+    .warn {
+      background: #fce8e6;
+      color: #a50e0e;
+    }
+
+    .muted {
+      color: #888;
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>EV Charging Platform</h1>
+  <div class="subtitle">Admin Dashboard – Live Charger Status</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Charger ID</th>
+        <th>Connected At</th>
+        <th>Registered</th>
+        <th>Active Transaction</th>
+        <th>Last Heartbeat</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <footer>
+    Cloud Tunnel · OCPP Platform Demo
+  </footer>
+
+  <script>
+    async function load() {
+      const res = await fetch('http://localhost:3000/admin/chargers');
+      const chargers = await res.json();
+
+      const rows = document.getElementById('rows');
+      rows.innerHTML = '';
+
+      chargers.forEach(c => {
+        const tr = document.createElement('tr');
+
+        tr.innerHTML = `
+          <td>${c.chargerId}</td>
+          <td class="muted">${c.connectedAt}</td>
+          <td>
+            <span class="badge ${c.registered ? 'ok' : 'warn'}">
+              ${c.registered ? 'Registered' : 'Pending'}
+            </span>
+          </td>
+          <td>${c.activeTransactionId ?? '-'}</td>
+          <td class="muted">${c.lastHeartbeatAt ?? '-'}</td>
+        `;
+
+        rows.appendChild(tr);
+      });
+    }
+
+    load();
+    setInterval(load, 2000);
+  </script>
+</body>
+</html>

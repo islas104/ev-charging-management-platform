@@ -2,22 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>OCPP Full Session Demo</title>
+  <title>OCPP Charger Simulator</title>
   <style>
-    body { font-family: Arial; padding: 2rem; }
-    button { margin-right: 0.5rem; margin-top: 0.5rem; }
-    pre { background: #f4f4f4; padding: 1rem; min-height: 180px; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f6f7f9;
+      padding: 2rem;
+    }
+
+    h1 {
+      margin-bottom: 0.25rem;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+
+    button {
+      padding: 0.5rem 0.75rem;
+      margin-right: 0.5rem;
+      margin-top: 0.5rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #f0f0f0;
+    }
+
+    pre {
+      margin-top: 1.5rem;
+      background: #111;
+      color: #0f0;
+      padding: 1rem;
+      border-radius: 6px;
+      height: 220px;
+      overflow: auto;
+      font-size: 0.8rem;
+    }
   </style>
 </head>
 <body>
-  <h2>EV Charging Platform – OCPP Demo</h2>
-  <p><strong>Charger:</strong> DEMO-CHARGER-001</p>
 
-  <button onclick="connect()">Connect</button>
-  <button onclick="boot()">Boot</button>
-  <button onclick="start()">Start Transaction</button>
-  <button onclick="stop()">Stop Transaction</button>
-  <button onclick="heartbeat()">Heartbeat</button>
+  <h1>OCPP Charger Simulator</h1>
+  <div class="subtitle">Charger: DEMO-CHARGER-001</div>
+
+  <div>
+    <button onclick="connect()">Connect</button>
+    <button onclick="boot()">Boot</button>
+    <button onclick="start()">Start</button>
+    <button onclick="heartbeat()">Heartbeat</button>
+    <button onclick="stop()">Stop</button>
+  </div>
 
   <pre id="log"></pre>
 
@@ -26,7 +65,11 @@
     let activeTransactionId;
     const logEl = document.getElementById('log');
 
-    const log = (m) => logEl.textContent += m + '\n';
+    const log = (m) => {
+      logEl.textContent += m + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+
     const id = () => Math.random().toString(36).substring(2, 8);
 
     function connect() {
@@ -34,14 +77,16 @@
         'ws://localhost:3000/ocpp?chargerId=DEMO-CHARGER-001',
         ['ocpp1.6']
       );
-      socket.onopen = () => log('Connected');
+
+      socket.onopen = () => log('CONNECTED');
       socket.onmessage = e => {
-        log('Received: ' + e.data);
+        log('RECV: ' + e.data);
         const msg = JSON.parse(e.data);
         if (msg[2]?.transactionId) {
           activeTransactionId = msg[2].transactionId;
         }
       };
+      socket.onclose = () => log('DISCONNECTED');
     }
 
     function boot() {
@@ -49,6 +94,7 @@
         2, id(), 'BootNotification',
         { chargePointVendor: 'CloudTunnel', chargePointModel: 'CT-AC-7KW' }
       ]));
+      log('SEND: BootNotification');
     }
 
     function start() {
@@ -61,6 +107,7 @@
           timestamp: new Date().toISOString()
         }
       ]));
+      log('SEND: StartTransaction');
     }
 
     function stop() {
@@ -73,10 +120,12 @@
           reason: 'Local'
         }
       ]));
+      log('SEND: StopTransaction');
     }
 
     function heartbeat() {
       socket.send(JSON.stringify([2, id(), 'Heartbeat', {}]));
+      log('SEND: Heartbeat');
     }
   </script>
 </body>
