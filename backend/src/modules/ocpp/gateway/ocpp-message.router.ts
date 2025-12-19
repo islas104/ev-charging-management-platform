@@ -2,6 +2,7 @@ import { WebSocket } from 'ws';
 import { Logger } from 'nestjs-pino';
 import { OcppMessageType } from '../types/ocpp-message';
 import { HeartbeatResponse } from '../types/heartbeat';
+import { BootNotificationResponse } from '../types/boot-notification';
 
 export function routeOcppMessage(
   socket: WebSocket,
@@ -17,12 +18,13 @@ export function routeOcppMessage(
     return;
   }
 
-  const [messageType, messageId, action] = message;
+  const [messageType, messageId, action, payload] = message;
 
   if (messageType !== OcppMessageType.CALL) {
     return;
   }
 
+  /* ---------- Heartbeat ---------- */
   if (action === 'Heartbeat') {
     const response: HeartbeatResponse = {
       currentTime: new Date().toISOString(),
@@ -37,5 +39,31 @@ export function routeOcppMessage(
     );
 
     logger.log('Heartbeat handled');
+    return;
+  }
+
+  /* ---------- BootNotification ---------- */
+  if (action === 'BootNotification') {
+    const response: BootNotificationResponse = {
+      status: 'Accepted',
+      currentTime: new Date().toISOString(),
+      interval: 300,
+    };
+
+    socket.send(
+      JSON.stringify([
+        OcppMessageType.CALL_RESULT,
+        messageId,
+        response,
+      ]),
+    );
+
+    logger.log(
+      {
+        vendor: payload?.chargePointVendor,
+        model: payload?.chargePointModel,
+      },
+      'BootNotification accepted',
+    );
   }
 }

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>OCPP Heartbeat Demo</title>
+  <title>OCPP Demo</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -10,14 +10,14 @@
     }
     button {
       padding: 0.5rem 1rem;
-      margin-top: 1rem;
       margin-right: 0.5rem;
+      margin-top: 1rem;
     }
     pre {
       background: #f4f4f4;
       padding: 1rem;
       margin-top: 1rem;
-      min-height: 120px;
+      min-height: 150px;
     }
   </style>
 </head>
@@ -27,6 +27,7 @@
   <p><strong>Charger ID:</strong> DEMO-CHARGER-001</p>
 
   <button onclick="connect()">Connect</button>
+  <button onclick="sendBoot()">Send BootNotification</button>
   <button onclick="sendHeartbeat()">Send Heartbeat</button>
 
   <pre id="log"></pre>
@@ -45,21 +46,32 @@
         ['ocpp1.6']
       );
 
-      socket.onopen = () => {
-        log('WebSocket connected');
-      };
+      socket.onopen = () => log('WebSocket connected');
+      socket.onmessage = (e) => log('Received: ' + e.data);
+      socket.onclose = () => log('WebSocket disconnected');
+      socket.onerror = () => log('WebSocket error');
+    }
 
-      socket.onmessage = (event) => {
-        log('Received: ' + event.data);
-      };
+    function sendBoot() {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        log('Socket not connected');
+        return;
+      }
 
-      socket.onclose = () => {
-        log('WebSocket disconnected');
-      };
+      const id = Math.random().toString(36).substring(2, 8);
 
-      socket.onerror = () => {
-        log('WebSocket error');
-      };
+      const boot = [
+        2,
+        id,
+        'BootNotification',
+        {
+          chargePointVendor: 'CloudTunnel',
+          chargePointModel: 'CT-AC-7KW',
+        }
+      ];
+
+      socket.send(JSON.stringify(boot));
+      log('Sent BootNotification: ' + JSON.stringify(boot));
     }
 
     function sendHeartbeat() {
@@ -68,14 +80,9 @@
         return;
       }
 
-      const messageId = Math.random().toString(36).substring(2, 8);
+      const id = Math.random().toString(36).substring(2, 8);
 
-      const heartbeat = [
-        2,
-        messageId,
-        'Heartbeat',
-        {}
-      ];
+      const heartbeat = [2, id, 'Heartbeat', {}];
 
       socket.send(JSON.stringify(heartbeat));
       log('Sent Heartbeat: ' + JSON.stringify(heartbeat));
