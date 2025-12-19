@@ -9,7 +9,7 @@ import {
   import { IncomingMessage } from 'http';
   
   @WebSocketGateway({
-    path: '/ocpp',
+    path: '/ocpp/:chargerId',
   })
   export class OcppGateway
     implements OnGatewayConnection, OnGatewayDisconnect
@@ -20,8 +20,13 @@ import {
     constructor(private readonly logger: Logger) {}
   
     handleConnection(client: WebSocket, request: IncomingMessage) {
+      const url = request.url ?? '';
+      const segments = url.split('/');
+      const chargerId = segments[segments.length - 1];
+  
       this.logger.log(
         {
+          chargerId,
           ip: request.socket?.remoteAddress,
         },
         'OCPP charger connected',
