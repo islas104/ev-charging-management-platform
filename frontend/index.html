@@ -3,72 +3,212 @@
 <head>
   <meta charset="UTF-8" />
   <title>OCPP Charger Simulator</title>
+
   <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --primary: #2563eb;
+      --border: #e5e7eb;
+      --text: #111827;
+      --muted: #6b7280;
+      --terminal-bg: #0b0f14;
+      --terminal-text: #22c55e;
+      --danger-bg: #fee2e2;
+      --danger-text: #991b1b;
+      --info-bg: #e0f2fe;
+      --info-text: #075985;
+      --success-bg: #dcfce7;
+      --success-text: #166534;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
+      margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f6f7f9;
-      padding: 2rem;
+      background: var(--bg);
+      color: var(--text);
+      padding: 2.5rem;
     }
 
-    h1 {
-      margin-bottom: 0.25rem;
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
     }
 
-    .subtitle {
-      color: #666;
+    header {
       margin-bottom: 1.5rem;
     }
 
+    h1 {
+      margin: 0;
+      font-size: 1.6rem;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+
+    .status {
+      display: inline-block;
+      margin-top: 0.75rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .status.disconnected {
+      background: var(--danger-bg);
+      color: var(--danger-text);
+    }
+
+    .status.connected {
+      background: var(--info-bg);
+      color: var(--info-text);
+    }
+
+    .status.active {
+      background: var(--success-bg);
+      color: var(--success-text);
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
     button {
-      padding: 0.5rem 0.75rem;
-      margin-right: 0.5rem;
-      margin-top: 0.5rem;
-      border-radius: 4px;
-      border: 1px solid #ccc;
+      appearance: none;
+      border: 1px solid var(--border);
       background: #fff;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #f0f0f0;
-    }
-
-    pre {
-      margin-top: 1.5rem;
-      background: #111;
-      color: #0f0;
-      padding: 1rem;
+      padding: 0.55rem 0.9rem;
       border-radius: 6px;
-      height: 220px;
-      overflow: auto;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.15s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background: #f9fafb;
+    }
+
+    button.primary {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    button.primary:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .terminal {
+      background: linear-gradient(180deg, #0b0f14, #020617);
+      color: var(--terminal-text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 0.8rem;
+      padding: 1rem;
+      border-radius: 10px;
+      height: 260px;
+      overflow-y: auto;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+    }
+
+    .terminal .dim {
+      color: #9ca3af;
+    }
+
+    footer {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
     }
   </style>
 </head>
+
 <body>
+  <div class="container">
 
-  <h1>OCPP Charger Simulator</h1>
-  <div class="subtitle">Charger: DEMO-CHARGER-001</div>
+    <header>
+      <h1>OCPP Charger Simulator</h1>
+      <div class="subtitle">Charger ID: <strong>DEMO-CHARGER-001</strong></div>
+      <div id="status" class="status disconnected">Disconnected</div>
+    </header>
 
-  <div>
-    <button onclick="connect()">Connect</button>
-    <button onclick="boot()">Boot</button>
-    <button onclick="start()">Start</button>
-    <button onclick="heartbeat()">Heartbeat</button>
-    <button onclick="stop()">Stop</button>
+    <div class="panel">
+      <div class="controls">
+        <button id="connectBtn" class="primary" onclick="connect()">Connect</button>
+        <button id="bootBtn" onclick="boot()">Boot</button>
+        <button id="startBtn" onclick="start()">Start Transaction</button>
+        <button id="heartbeatBtn" onclick="heartbeat()">Heartbeat</button>
+        <button id="stopBtn" onclick="stop()">Stop Transaction</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="terminal" id="log"></div>
+    </div>
+
+    <footer>
+      Cloud Tunnel · EV Charging Platform · OCPP 1.6
+    </footer>
   </div>
-
-  <pre id="log"></pre>
 
   <script>
     let socket;
-    let activeTransactionId;
-    const logEl = document.getElementById('log');
+    let activeTransactionId = null;
 
-    const log = (m) => {
-      logEl.textContent += m + '\n';
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('status');
+
+    const connectBtn = document.getElementById('connectBtn');
+    const bootBtn = document.getElementById('bootBtn');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const heartbeatBtn = document.getElementById('heartbeatBtn');
+
+    function log(message, dim = false) {
+      const ts = new Date().toLocaleTimeString();
+      const line = document.createElement('div');
+      if (dim) line.className = 'dim';
+      line.textContent = `[${ts}] ${message}`;
+      logEl.appendChild(line);
       logEl.scrollTop = logEl.scrollHeight;
-    };
+    }
+
+    function setStatus(type, text) {
+      statusEl.className = `status ${type}`;
+      statusEl.textContent = text;
+    }
+
+    function setButtons(state) {
+      bootBtn.disabled = state === 'disconnected';
+      startBtn.disabled = state !== 'connected';
+      stopBtn.disabled = state !== 'active';
+      heartbeatBtn.disabled = state === 'disconnected';
+    }
+
+    setButtons('disconnected');
 
     const id = () => Math.random().toString(36).substring(2, 8);
 
@@ -78,54 +218,70 @@
         ['ocpp1.6']
       );
 
-      socket.onopen = () => log('CONNECTED');
-      socket.onmessage = e => {
-        log('RECV: ' + e.data);
+      socket.onopen = () => {
+        setStatus('connected', 'Connected (Idle)');
+        setButtons('connected');
+        log('CONNECTED');
+        boot();
+      };
+
+      socket.onclose = () => {
+        setStatus('disconnected', 'Disconnected');
+        setButtons('disconnected');
+        log('DISCONNECTED', true);
+      };
+
+      socket.onerror = () => {
+        log('ERROR: WebSocket error', true);
+      };
+      
+      socket.onmessage = (e) => {
+        log(`RECV  ${e.data}`);
         const msg = JSON.parse(e.data);
         if (msg[2]?.transactionId) {
           activeTransactionId = msg[2].transactionId;
         }
       };
-      socket.onclose = () => log('DISCONNECTED');
+    }
+
+    function send(action, payload) {
+      const msg = [2, id(), action, payload];
+      socket.send(JSON.stringify(msg));
+      log(`SEND  ${action}`);
     }
 
     function boot() {
-      socket.send(JSON.stringify([
-        2, id(), 'BootNotification',
-        { chargePointVendor: 'CloudTunnel', chargePointModel: 'CT-AC-7KW' }
-      ]));
-      log('SEND: BootNotification');
+      send('BootNotification', {
+        chargePointVendor: 'CloudTunnel',
+        chargePointModel: 'CT-AC-7KW'
+      });
     }
 
     function start() {
-      socket.send(JSON.stringify([
-        2, id(), 'StartTransaction',
-        {
-          connectorId: 1,
-          idTag: 'RFID-12345',
-          meterStart: 0,
-          timestamp: new Date().toISOString()
-        }
-      ]));
-      log('SEND: StartTransaction');
+      send('StartTransaction', {
+        connectorId: 1,
+        idTag: 'RFID-12345',
+        meterStart: 0,
+        timestamp: new Date().toISOString()
+      });
+      setStatus('active', 'Charging Session Active');
+      setButtons('active');
     }
 
     function stop() {
-      socket.send(JSON.stringify([
-        2, id(), 'StopTransaction',
-        {
-          transactionId: activeTransactionId,
-          meterStop: 12,
-          timestamp: new Date().toISOString(),
-          reason: 'Local'
-        }
-      ]));
-      log('SEND: StopTransaction');
+      send('StopTransaction', {
+        transactionId: activeTransactionId,
+        meterStop: 12,
+        timestamp: new Date().toISOString(),
+        reason: 'Local'
+      });
+      activeTransactionId = null;
+      setStatus('connected', 'Connected (Idle)');
+      setButtons('connected');
     }
 
     function heartbeat() {
-      socket.send(JSON.stringify([2, id(), 'Heartbeat', {}]));
-      log('SEND: Heartbeat');
+      send('Heartbeat', {});
     }
   </script>
 </body>
