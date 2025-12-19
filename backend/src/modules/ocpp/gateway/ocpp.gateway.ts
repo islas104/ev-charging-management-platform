@@ -8,6 +8,9 @@ import {
   import { Logger } from 'nestjs-pino';
   import { IncomingMessage } from 'http';
   
+  import { resolveOcppProtocol } from './ocpp-protocol.resolver';
+  import { OcppProtocolVersion } from '../types/protocol-version';
+  
   @WebSocketGateway({
     path: '/ocpp/:chargerId',
   })
@@ -24,17 +27,39 @@ import {
       const segments = url.split('/');
       const chargerId = segments[segments.length - 1];
   
+      const protocol = resolveOcppProtocol(
+        request.headers['sec-websocket-protocol']
+          ?.toString()
+          .split(',')
+          .map((p) => p.trim()),
+      );
+  
       this.logger.log(
         {
           chargerId,
+          protocol,
           ip: request.socket?.remoteAddress,
         },
         'OCPP charger connected',
       );
+  
+      // Attach resolved protocol to socket for later routing
+      (client as any).ocpp = {
+        chargerId,
+        protocol,
+      };
     }
   
     handleDisconnect(client: WebSocket) {
-      this.logger.log('OCPP charger disconnected');
+      const meta = (client as any).ocpp;
+  
+      this.logger.log(
+        {
+          chargerId: meta?.chargerId,
+          protocol: meta?.protocol,
+        },
+        'OCPP charger disconnected',
+      );
     }
   }
   
