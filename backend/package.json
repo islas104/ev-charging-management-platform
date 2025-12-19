@@ -24,6 +24,7 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-ws": "^11.1.9",
     "@nestjs/websockets": "^11.1.9",
     "nestjs-pino": "^4.5.0",
     "pino-pretty": "^13.1.3",

@@ -12,7 +12,7 @@ import { resolveOcppProtocol } from './ocpp-protocol.resolver';
 import { routeOcppMessage } from './ocpp-message.router';
 
 @WebSocketGateway({
-  path: '/ocpp/:chargerId',
+  path: '/ocpp',
 })
 export class OcppGateway
   implements OnGatewayConnection, OnGatewayDisconnect
@@ -23,8 +23,8 @@ export class OcppGateway
   constructor(private readonly logger: Logger) {}
 
   handleConnection(client: WebSocket, request: IncomingMessage) {
-    const url = request.url ?? '';
-    const chargerId = url.split('/').pop();
+    const url = new URL(request.url ?? '', 'http://localhost');
+    const chargerId = url.searchParams.get('chargerId');
 
     const protocol = resolveOcppProtocol(
       request.headers['sec-websocket-protocol']

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>OCPP Heartbeat Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      margin-top: 1rem;
+      margin-right: 0.5rem;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 1rem;
+      margin-top: 1rem;
+      min-height: 120px;
+    }
+  </style>
+</head>
+<body>
+  <h2>EV Charging Platform – OCPP Demo</h2>
+
+  <p><strong>Charger ID:</strong> DEMO-CHARGER-001</p>
+
+  <button onclick="connect()">Connect</button>
+  <button onclick="sendHeartbeat()">Send Heartbeat</button>
+
+  <pre id="log"></pre>
+
+  <script>
+    let socket;
+    const logEl = document.getElementById('log');
+
+    function log(message) {
+      logEl.textContent += message + '\n';
+    }
+
+    function connect() {
+      socket = new WebSocket(
+        'ws://localhost:3000/ocpp?chargerId=DEMO-CHARGER-001',
+        ['ocpp1.6']
+      );
+
+      socket.onopen = () => {
+        log('WebSocket connected');
+      };
+
+      socket.onmessage = (event) => {
+        log('Received: ' + event.data);
+      };
+
+      socket.onclose = () => {
+        log('WebSocket disconnected');
+      };
+
+      socket.onerror = () => {
+        log('WebSocket error');
+      };
+    }
+
+    function sendHeartbeat() {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        log('Socket not connected');
+        return;
+      }
+
+      const messageId = Math.random().toString(36).substring(2, 8);
+
+      const heartbeat = [
+        2,
+        messageId,
+        'Heartbeat',
+        {}
+      ];
+
+      socket.send(JSON.stringify(heartbeat));
+      log('Sent Heartbeat: ' + JSON.stringify(heartbeat));
+    }
+  </script>
+</body>
+</html>
