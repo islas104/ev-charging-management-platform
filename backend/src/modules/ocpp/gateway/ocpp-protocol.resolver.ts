@@ -4,7 +4,7 @@ export function resolveOcppProtocol(
   protocols: readonly string[] | undefined,
 ): OcppProtocolVersion {
   if (!protocols || protocols.length === 0) {
-    return OcppProtocolVersion.OCPP_1_6; // safe default
+    return OcppProtocolVersion.OCPP_1_6;
   }
 
   if (protocols.includes('ocpp2.0.1')) {
