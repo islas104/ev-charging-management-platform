@@ -1,8 +1,10 @@
 import { Module, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+
 import { AppController } from './app.controller';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { OcppModule } from './modules/ocpp/ocpp.module';
 
 @Module({
   imports: [
@@ -21,6 +23,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
         },
       },
     }),
+    OcppModule,
   ],
   controllers: [AppController],
 })
