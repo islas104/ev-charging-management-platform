@@ -10,7 +10,7 @@ import { IncomingMessage } from 'http';
 
 import { resolveOcppProtocol } from './ocpp-protocol.resolver';
 import { routeOcppMessage } from './ocpp-message.router';
-import { chargers } from '../ocpp.state';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 @WebSocketGateway({
   path: '/ocpp',
@@ -21,7 +21,10 @@ export class OcppGateway
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly prisma: PrismaService,
+  ) {}
 
   handleConnection(client: WebSocket, request: IncomingMessage) {
     const url = new URL(request.url ?? '', 'http://localhost');
@@ -33,13 +36,6 @@ export class OcppGateway
         .split(',')
         .map((p) => p.trim()),
     );
-
-    // 🔹 Track charger state for admin dashboard
-    chargers.set(chargerId, {
-      chargerId,
-      connectedAt: new Date().toISOString(),
-      registered: false,
-    });
 
     (client as any).ocpp = { chargerId, protocol };
 
@@ -53,20 +49,16 @@ export class OcppGateway
         client,
         data.toString(),
         this.logger,
+        this.prisma,
       );
     });
   }
 
   handleDisconnect(client: WebSocket) {
     const meta = (client as any).ocpp;
-    const chargerId = meta?.chargerId;
-
-    if (chargerId) {
-      chargers.delete(chargerId);
-    }
 
     this.logger.log(
-      { chargerId },
+      { chargerId: meta?.chargerId },
       'OCPP charger disconnected',
     );
   }

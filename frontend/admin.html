@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>EV Charging Platform – Admin</title>
+
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -12,12 +13,17 @@
     }
 
     h1 {
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    h2 {
+      margin-top: 3rem;
+      margin-bottom: 0.75rem;
     }
 
     .subtitle {
       color: #666;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
     }
 
     table {
@@ -34,6 +40,7 @@
       text-align: left;
       border-bottom: 1px solid #eee;
       font-size: 0.9rem;
+      white-space: nowrap;
     }
 
     th {
@@ -66,19 +73,25 @@
 
     .muted {
       color: #888;
+      font-size: 0.8rem;
     }
 
     footer {
-      margin-top: 2rem;
+      margin-top: 3rem;
       font-size: 0.75rem;
       color: #888;
+      text-align: center;
     }
   </style>
 </head>
+
 <body>
 
   <h1>EV Charging Platform</h1>
-  <div class="subtitle">Admin Dashboard – Live Charger Status</div>
+  <div class="subtitle">Admin Dashboard – MVP</div>
+
+  <!-- ================= Chargers ================= -->
+  <h2>Connected Chargers</h2>
 
   <table>
     <thead>
@@ -86,46 +99,92 @@
         <th>Charger ID</th>
         <th>Connected At</th>
         <th>Registered</th>
-        <th>Active Transaction</th>
         <th>Last Heartbeat</th>
       </tr>
     </thead>
-    <tbody id="rows"></tbody>
+    <tbody id="chargers"></tbody>
+  </table>
+
+  <!-- ================= Transactions ================= -->
+  <h2>Transactions</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Charger</th>
+        <th>OCPP Tx ID</th>
+        <th>ID Tag</th>
+        <th>Meter Start</th>
+        <th>Meter Stop</th>
+        <th>Started</th>
+        <th>Stopped</th>
+        <th>Reason</th>
+      </tr>
+    </thead>
+    <tbody id="transactions"></tbody>
   </table>
 
   <footer>
-    Cloud Tunnel · OCPP Platform Demo
+    Cloud Tunnel · OCPP 1.6 · MVP
   </footer>
 
   <script>
-    async function load() {
+    async function loadChargers() {
       const res = await fetch('http://localhost:3000/admin/chargers');
-      const chargers = await res.json();
+      const data = await res.json();
 
-      const rows = document.getElementById('rows');
-      rows.innerHTML = '';
+      const tbody = document.getElementById('chargers');
+      tbody.innerHTML = '';
 
-      chargers.forEach(c => {
+      data.forEach(c => {
         const tr = document.createElement('tr');
-
         tr.innerHTML = `
           <td>${c.chargerId}</td>
-          <td class="muted">${c.connectedAt}</td>
+          <td class="muted">${c.connectedAt ?? '-'}</td>
           <td>
             <span class="badge ${c.registered ? 'ok' : 'warn'}">
               ${c.registered ? 'Registered' : 'Pending'}
             </span>
           </td>
-          <td>${c.activeTransactionId ?? '-'}</td>
           <td class="muted">${c.lastHeartbeatAt ?? '-'}</td>
         `;
-
-        rows.appendChild(tr);
+        tbody.appendChild(tr);
       });
     }
 
-    load();
-    setInterval(load, 2000);
+    async function loadTransactions() {
+      const res = await fetch('http://localhost:3000/admin/transactions');
+      const data = await res.json();
+
+      const tbody = document.getElementById('transactions');
+      tbody.innerHTML = '';
+
+      data.forEach(t => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${t.chargerId}</td>
+          <td>${t.ocppTransactionId}</td>
+          <td>${t.idTag}</td>
+          <td>${t.meterStart}</td>
+          <td>${t.meterStop ?? '-'}</td>
+          <td class="muted">${new Date(t.startedAt).toLocaleString()}</td>
+          <td class="muted">${t.stoppedAt ? new Date(t.stoppedAt).toLocaleString() : '-'}</td>
+          <td>${t.stopReason ?? '-'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function refresh() {
+      await Promise.all([
+        loadChargers(),
+        loadTransactions(),
+      ]);
+    }
+
+    refresh();
+    setInterval(refresh, 3000);
   </script>
+
 </body>
 </html>

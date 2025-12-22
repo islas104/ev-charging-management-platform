@@ -6,9 +6,11 @@ import { AppController } from './app.controller';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { OcppModule } from './modules/ocpp/ocpp.module';
 import { AdminController } from './modules/admin/admin.controller';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
+    PrismaModule, // ✅ REQUIRED for database access
     ConfigModule.forRoot({ isGlobal: true }),
     LoggerModule.forRoot({
       pinoHttp: {
@@ -28,7 +30,7 @@ import { AdminController } from './modules/admin/admin.controller';
   ],
   controllers: [
     AppController,
-    AdminController, // ✅ REQUIRED for admin dashboard
+    AdminController,
   ],
 })
 export class AppModule {
