@@ -28,7 +28,6 @@ export async function routeOcppMessage(
   }
 
   const [messageType, messageId, action, payload] = message;
-
   if (messageType !== OcppMessageType.CALL) return;
 
   const { chargerId } = (socket as any).ocpp;
@@ -57,7 +56,7 @@ export async function routeOcppMessage(
     await prisma.charger.upsert({
       where: { chargerId },
       update: {
-        protocol: payload?.chargePointModel,
+        protocol: payload?.chargePointModel ?? 'ocpp1.6',
         registered: true,
         lastSeenAt: new Date(),
       },
@@ -85,26 +84,21 @@ export async function routeOcppMessage(
 
   /* ---------- StartTransaction ---------- */
   if (action === 'StartTransaction') {
-    const ocppTransactionId = ++transactionCounter;
-
     const charger = await prisma.charger.findUnique({
       where: { chargerId },
     });
 
-    if (!charger) return;
-
-    // Prevent multiple active transactions
-    const existing = await prisma.transaction.findFirst({
-      where: {
-        chargerId: charger.id,
-        stoppedAt: null,
-      },
-    });
-
-    if (existing) {
-      logger.warn({ chargerId }, 'Active transaction already exists');
+    if (!charger) {
+      logger.warn({ chargerId }, 'StartTransaction for unknown charger');
       return;
     }
+
+    const lastTx = await prisma.transaction.findFirst({
+      orderBy: { ocppTransactionId: 'desc' },
+      select: { ocppTransactionId: true },
+    });
+
+    const ocppTransactionId = (lastTx?.ocppTransactionId ?? 1000) + 1;
 
     await prisma.transaction.create({
       data: {
@@ -112,6 +106,7 @@ export async function routeOcppMessage(
         chargerId: charger.id,
         idTag: payload.idTag,
         meterStart: payload.meterStart,
+        startedAt: new Date(payload.timestamp),
       },
     });
 
@@ -126,21 +121,21 @@ export async function routeOcppMessage(
 
     logger.log(
       { chargerId, ocppTransactionId },
-      'Transaction started',
+      'Transaction started and persisted',
     );
+
     return;
   }
 
   /* ---------- StopTransaction ---------- */
   if (action === 'StopTransaction') {
-    await prisma.transaction.updateMany({
+    await prisma.transaction.update({
       where: {
         ocppTransactionId: payload.transactionId,
-        stoppedAt: null,
       },
       data: {
         meterStop: payload.meterStop,
-        stoppedAt: new Date(),
+        stoppedAt: new Date(payload.timestamp),
         stopReason: payload.reason,
       },
     });
@@ -154,8 +149,10 @@ export async function routeOcppMessage(
     );
 
     logger.log(
-      { chargerId, transactionId: payload.transactionId },
+      { chargerId, ocppTransactionId: payload.transactionId },
       'Transaction stopped',
     );
+
+    return;
   }
 }
