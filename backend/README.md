@@ -1,241 +1,205 @@
-EV Charging Platform -- Backend (OCPP)
 
-This service implements an OCPP 1.6 WebSocket backend for managing EV chargers, charging sessions, and real-time status updates. It is designed as a clean, extensible foundation for a production EV charging platform.
+# EV Charging Platform — Backend (OCPP 1.6)
 
-Responsibilities
+This service implements an **OCPP 1.6 WebSocket backend** for managing EV chargers, charging sessions, and real-time status updates.
+
+It is designed as a **clean, extensible MVP foundation** for a production EV charging platform.
+
+---
+
+## Responsibilities
 
 The backend is responsible for:
 
-Managing WebSocket connections from EV chargers
+- Managing WebSocket connections from EV chargers
+- Handling OCPP 1.6 protocol messages
+- Persisting charger and transaction state
+- Exposing admin APIs for monitoring
+- Providing structured logging and observability
 
-Handling OCPP 1.6 protocol messages
+---
 
-Tracking charger and transaction state
+## Technology Stack
 
-Exposing admin APIs for monitoring
+- Node.js
+- NestJS
+- WebSockets (`ws`)
+- Prisma ORM
+- PostgreSQL
+- OCPP 1.6
+- TypeScript
+- `nestjs-pino` (structured logging)
 
-Providing structured logging and observability
+---
 
-Technology Stack
-
-Node.js
-
-NestJS
-
-WebSockets (ws)
-
-OCPP 1.6
-
-nestjs-pino (structured logging)
-
-TypeScript
-
-High-Level Architecture
+## High-Level Architecture
 
 src/
-
 ├── app.module.ts
-
 ├── main.ts
-
+├── prisma/
+│ └── prisma.service.ts
 ├── common/
-
 │ └── middleware/
-
 │ └── request-id.middleware.ts
-
 └── modules/
-
 ├── ocpp/
-
 │ ├── gateway/
-
 │ │ └── ocpp.gateway.ts
-
-│ ├── handlers/
-
-│ │ ├── boot-notification.handler.ts
-
-│ │ ├── heartbeat.handler.ts
-
-│ │ ├── start-transaction.handler.ts
-
-│ │ └── stop-transaction.handler.ts
-
 │ ├── ocpp-message.router.ts
-
-│ ├── ocpp-protocol.resolver.ts
-
 │ ├── ocpp.state.ts
-
 │ └── ocpp.module.ts
-
 └── admin/
-
 └── admin.controller.ts
 
-OCPP Support
 
-Implemented Actions (OCPP 1.6)
+---
 
-BootNotification
+## OCPP Support
 
-Heartbeat
+### Implemented Actions (OCPP 1.6)
 
-StartTransaction
-
-StopTransaction
+- BootNotification
+- Heartbeat
+- StartTransaction
+- StopTransaction
 
 Each action:
+- Is routed via a central message router
+- Persists state where applicable
+- Returns protocol-compliant responses
 
-Is routed via a central message router
+---
 
-Has a dedicated handler
+## WebSocket Gateway
 
-Returns protocol-compliant responses
+### Endpoint
 
-WebSocket Gateway
 
-Endpoint
 
 ws://localhost:3000/ocpp?chargerId={CHARGER_ID}
 
-Protocol Negotiation
 
-The backend negotiates OCPP protocol versions using the
+### Protocol Negotiation
 
-Sec-WebSocket-Protocol header.
+The backend negotiates protocols via:
+
+
+
+Sec-WebSocket-Protocol
+
 
 Supported:
+- `ocpp1.6`
 
-ocpp1.6
+---
 
-Charger State Management
+## Charger & Transaction State
 
-Charger and session state is tracked in memory for clarity and speed.
+State is persisted in PostgreSQL using Prisma.
 
-Tracked attributes include:
+### Charger
+- Charger ID
+- Protocol
+- Registration status
+- Last heartbeat timestamp
+- Created timestamp
 
-Charger ID
+### Transaction
+- OCPP transaction ID (unique)
+- Charger reference
+- RFID / ID tag
+- Meter values
+- Start & stop timestamps
+- Stop reason
 
-Connection timestamp
+---
 
-Registration status
+## Admin API
 
-Active transaction ID
+### Get Connected Chargers
 
-Last heartbeat timestamp
 
-State is exposed via the admin API.
-
-Admin API
-
-Get Connected Chargers
 
 GET /admin/chargers
 
-Response:
 
+Response example:
+
+```json
 [
-
-{
-
-"chargerId": "DEMO-CHARGER-001",
-
-"connectedAt": "2025-01-01T12:00:00Z",
-
-"registered": true,
-
-"activeTransactionId": 1001,
-
-"lastHeartbeatAt": "2025-01-01T12:05:00Z"
-
-}
-
+  {
+    "chargerId": "DEMO-CHARGER-001",
+    "connectedAt": "2025-12-22T11:03:45Z",
+    "registered": true,
+    "lastHeartbeatAt": "2025-12-22T11:47:01Z"
+  }
 ]
 
-This endpoint is intentionally unauthenticated for MVP/demo purposes.
+Get Transactions
+GET /admin/transactions
 
-Logging & Observability
 
-Structured JSON logs
+Response example:
 
-Request correlation via x-request-id
+[
+  {
+    "chargerId": "DEMO-CHARGER-001",
+    "ocppTransactionId": 1002,
+    "idTag": "RFID-12345",
+    "meterStart": 0,
+    "meterStop": 12,
+    "startedAt": "2025-12-22T11:47:00Z",
+    "stoppedAt": "2025-12-22T11:47:03Z",
+    "stopReason": "Local"
+  }
+]
+```
+APIs are intentionally unauthenticated for MVP/demo purposes.
 
-Human-readable output in development
-
-Clear lifecycle logs for:
-
-Connections
-
-OCPP actions
-
-Transactions
-
-Environment Configuration
+# Environment Configuration
 
 .env.example
-
 PORT=3000
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ev_charging
 
-Running Locally
+# Running Locally
 
-Install Dependencies
-
+## Install Dependencies
 npm install
 
-Start Development Server
-
+## Start Development Server
 npm run start:dev
 
-The backend will start on:
+Backend will run at:
 
 http://localhost:3000
 
-Health check:
-
+## Health check:
 GET /health
 
-Design Principles
+# Design Principles
 
-Explicit over implicit
+- Protocol correctness first
+- Explicit over implicit behaviour
+- Simple, inspectable state model
+- No premature infrastructure complexity
+- Easy to extend for persistence and scaling
+- Known Limitations (Intentional)
+- No authentication or authorisation
+- Single-instance only
+- No billing or tariff logic
+- These are intentional for MVP clarity.
 
-Protocol correctness first
+# Future Enhancements
 
-Simple state model
+- Authentication & RBAC
+- Dockerisation & deployment
+- Horizontal scaling
+- OCPP 2.0.1 support
+- Billing, tariffs, and reporting
 
-Easy to extend for persistence and scaling
-
-No premature infrastructure complexity
-
-Known Limitations
-
-No persistent storage (in-memory only)
-
-No authentication or authorisation
-
-Single-instance only (no clustering)
-
-These are intentional for MVP clarity.
-
-Future Enhancements
-
-PostgreSQL persistence
-
-Authentication for admin APIs
-
-Dockerisation and deployment
-
-Horizontal scaling
-
-OCPP 2.0.1 support
-
-Billing and reporting services
-
-Author
-
+# Author
 Islas Ahmed Nawaz
-
 Cloud Tunnel
-
 EV Charging & Platform Engineering

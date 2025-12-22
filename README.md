@@ -1,84 +1,38 @@
-EV Charging Management Platform
-===============================
 
-A lightweight EV charging platform implementing **OCPP 1.6**, featuring a real-time backend, a charger simulator, and an admin dashboard.\
-Designed for demonstrations, pilots, and as a foundation for a production-grade EV charging system.
+---
 
-* * * * *
-
-What This Project Is
---------------------
-
-This repository contains a **full end-to-end OCPP implementation**:
-
--   A **NestJS backend** handling OCPP 1.6 over WebSockets
-
--   A **browser-based charger simulator** to emulate real chargers
-
--   A **live admin dashboard** for monitoring charger and session state
-
-The platform demonstrates the **complete EV charging lifecycle** in a clear, inspectable way.
-
-* * * * *
-
-Repository Structure
---------------------
-
-`.
-├── backend/            # OCPP backend service (NestJS)
-│   └── README.md
-├── frontend/           # Static frontend UIs
-│   ├── index.html      # Charger simulator
-│   └── admin.html      # Admin dashboard
-├── README.md           # You are here`
-
-* * * * *
-
-Key Capabilities
-----------------
+## Key Capabilities
 
 ### Backend
-
--   OCPP 1.6 WebSocket gateway
-
--   Charger identification and protocol negotiation
-
--   Supported actions:
-
-    -   BootNotification
-
-    -   Heartbeat
-
-    -   StartTransaction
-
-    -   StopTransaction
-
--   In-memory charger and transaction state
-
--   Admin monitoring API
-
--   Structured logging
+- OCPP 1.6 WebSocket gateway
+- Charger identification & protocol negotiation
+- Supported actions:
+  - BootNotification
+  - Heartbeat
+  - StartTransaction
+  - StopTransaction
+- Persistent charger & transaction storage (PostgreSQL)
+- Admin monitoring API
+- Structured logging
 
 ### Frontend
+- Charger simulator with live protocol messages
+- Admin dashboard with live charger & transaction visibility
+- No framework or build step required
 
--   Charger simulator with live protocol messages
+---
 
--   Admin dashboard with real-time charger visibility
+## Getting Started
 
--   No build step or framework dependency
+### 1. Start the Backend
 
-* * * * *
-
-Getting Started
----------------
-
-### 1\. Start the Backend
-
-`cd backend
+```bash
+cd backend
 npm install
-npm run start:dev`
+npm run start:dev
+```
 
-Backend runs on:
+Backend runs at:
 
 `http://localhost:3000`
 
@@ -98,9 +52,9 @@ Simulates:
 
 -   Charger connection
 
--   Boot notification
+-   BootNotification
 
--   Charging session start / stop
+-   Start/Stop transactions
 
 -   Heartbeats
 
@@ -112,13 +66,13 @@ Open in a browser:
 
 `frontend/admin.html`
 
-Shows:
+Displays:
 
 -   Connected chargers
 
--   Registration status
+-   Registration state
 
--   Active transactions
+-   Transaction history
 
 -   Heartbeat timestamps
 
@@ -141,12 +95,12 @@ Recommended Demo Flow
 
 7.  Watch state update live
 
-This demonstrates a **real OCPP lifecycle** end-to-end.
+This demonstrates a **real OCPP lifecycle end-to-end**.
 
 * * * * *
 
-Current Scope
--------------
+Current Scope (MVP)
+-------------------
 
 This repository intentionally focuses on:
 
@@ -154,13 +108,15 @@ This repository intentionally focuses on:
 
 -   Clear system behaviour
 
--   Demo and MVP readiness
+-   End-to-end demonstrability
 
-It does **not** yet include:
-
--   Persistent storage
+It **does not** yet include:
 
 -   Authentication
+
+-   Billing or tariffs
+
+-   Multi-site management
 
 -   Production deployment configuration
 
@@ -169,19 +125,19 @@ It does **not** yet include:
 Roadmap
 -------
 
-Planned enhancements include:
+Planned enhancements:
 
--   Database persistence (PostgreSQL)
+-   Authentication & RBAC
 
--   Authentication and role-based access
+-   Multi-charger & multi-site support
 
--   Dockerisation and CI/CD
+-   Dockerisation & CI/CD
 
--   Multi-charger scaling
+-   Horizontal scaling
 
 -   OCPP 2.0.1 support
 
--   Billing and reporting services
+-   Billing & reporting services
 
 * * * * *
 
