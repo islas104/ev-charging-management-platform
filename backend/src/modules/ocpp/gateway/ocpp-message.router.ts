@@ -1,5 +1,7 @@
 import { WebSocket } from 'ws';
 import { Logger } from 'nestjs-pino';
+import { PrismaService } from '../../../prisma/prisma.service';
+
 import { OcppMessageType } from '../types/ocpp-message';
 import { HeartbeatResponse } from '../types/heartbeat';
 import { BootNotificationResponse } from '../types/boot-notification';
@@ -10,10 +12,11 @@ import {
 
 let transactionCounter = 1000;
 
-export function routeOcppMessage(
+export async function routeOcppMessage(
   socket: WebSocket,
   rawMessage: string,
   logger: Logger,
+  prisma: PrismaService,
 ) {
   let message: any;
 
@@ -30,6 +33,20 @@ export function routeOcppMessage(
 
   /* ---------- Heartbeat ---------- */
   if (action === 'Heartbeat') {
+    const { chargerId } = (socket as any).ocpp;
+
+    try {
+      await prisma.charger.update({
+        where: { chargerId },
+        data: {
+          lastSeenAt: new Date(),
+        },
+      });
+    } catch (err) {
+      logger.error(err, 'Heartbeat persistence failed');
+      // do NOT throw
+    }
+
     const response: HeartbeatResponse = {
       currentTime: new Date().toISOString(),
     };
@@ -38,12 +55,35 @@ export function routeOcppMessage(
       JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
     );
 
-    logger.log('Heartbeat handled');
+    logger.log({ chargerId }, 'Heartbeat received');
     return;
   }
 
   /* ---------- BootNotification ---------- */
   if (action === 'BootNotification') {
+    const { chargerId, protocol } = (socket as any).ocpp;
+
+    try {
+      await prisma.charger.upsert({
+        where: { chargerId },
+        update: {
+          protocol,
+          registered: true,
+          lastSeenAt: new Date(),
+        },
+        create: {
+          chargerId,
+          protocol,
+          registered: true,
+          lastSeenAt: new Date(),
+          // IMPORTANT: no siteId here
+        },
+      });
+    } catch (err) {
+      logger.error(err, 'BootNotification persistence failed');
+      // do NOT throw
+    }
+
     const response: BootNotificationResponse = {
       status: 'Accepted',
       currentTime: new Date().toISOString(),
@@ -54,13 +94,7 @@ export function routeOcppMessage(
       JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
     );
 
-    logger.log(
-      {
-        vendor: payload?.chargePointVendor,
-        model: payload?.chargePointModel,
-      },
-      'BootNotification accepted',
-    );
+    logger.log({ chargerId }, 'BootNotification accepted');
     return;
   }
 
@@ -104,5 +138,6 @@ export function routeOcppMessage(
       },
       'Transaction stopped',
     );
+    return;
   }
 }

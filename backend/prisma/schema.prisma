@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Site {
+  id        Int       @id @default(autoincrement())
+  name      String
+  address   String
+  chargers  Charger[]
+  createdAt DateTime  @default(now())
+}
+
+model Charger {
+  id           Int           @id @default(autoincrement())
+  chargerId    String        @unique
+  protocol     String
+  registered   Boolean       @default(false)
+  lastSeenAt   DateTime?
+
+  siteId       Int?          // ✅ OPTIONAL
+  site         Site?         @relation(fields: [siteId], references: [id])
+
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+}
+
+model Transaction {
+  id         Int       @id @default(autoincrement())
+  chargerId  Int
+  charger    Charger  @relation(fields: [chargerId], references: [id])
+  idTag      String
+  meterStart Int
+  meterStop  Int?
+  startedAt  DateTime @default(now())
+  stoppedAt  DateTime?
+  stopReason String?
+}
+
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
