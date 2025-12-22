@@ -4,11 +4,34 @@
   <meta charset="UTF-8" />
   <title>EV Charging Platform – Admin</title>
   <style>
+    :root {
+      --bg-light: #f6f7f9;
+      --panel-light: #ffffff;
+      --text-light: #222;
+      --bg-dark: #1a202c;
+      --panel-dark: #2d3748;
+      --text-dark: #e2e8f0;
+      --primary: #2563eb;
+      --border: #e5e7eb;
+      --muted-light: #666;
+      --muted-dark: #a0aec0;
+      --ok-bg: #e6f4ea;
+      --ok-text: #137333;
+      --warn-bg: #fce8e6;
+      --warn-text: #a50e0e;
+    }
+
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f6f7f9;
+      background: var(--bg-light);
+      color: var(--text-light);
       padding: 2rem;
-      color: #222;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    body.dark-mode {
+      background: var(--bg-dark);
+      color: var(--text-dark);
     }
 
     h1 {
@@ -16,23 +39,32 @@
     }
 
     .subtitle {
-      color: #666;
+      color: var(--muted-light);
       margin-bottom: 2rem;
+    }
+
+    body.dark-mode .subtitle {
+      color: var(--muted-dark);
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      background: #fff;
+      background: var(--panel-light);
       border-radius: 6px;
       overflow: hidden;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    body.dark-mode table {
+      background: var(--panel-dark);
     }
 
     th, td {
       padding: 0.75rem;
       text-align: left;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid var(--border);
       font-size: 0.9rem;
     }
 
@@ -42,8 +74,21 @@
       color: #444;
     }
 
+    body.dark-mode th {
+      background: #4a5568;
+      color: #e2e8f0;
+    }
+
     tr:last-child td {
       border-bottom: none;
+    }
+
+    tr:hover {
+      background: #f3f4f6;
+    }
+
+    body.dark-mode tr:hover {
+      background: #2d3748;
     }
 
     .badge {
@@ -55,28 +100,50 @@
     }
 
     .ok {
-      background: #e6f4ea;
-      color: #137333;
+      background: var(--ok-bg);
+      color: var(--ok-text);
     }
 
     .warn {
-      background: #fce8e6;
-      color: #a50e0e;
+      background: var(--warn-bg);
+      color: var(--warn-text);
     }
 
     .muted {
-      color: #888;
+      color: var(--muted-light);
+    }
+
+    body.dark-mode .muted {
+      color: var(--muted-dark);
     }
 
     footer {
       margin-top: 2rem;
       font-size: 0.75rem;
-      color: #888;
+      color: var(--muted-light);
+    }
+
+    body.dark-mode footer {
+      color: var(--muted-dark);
+    }
+
+    .dark-mode-toggle {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
     }
   </style>
 </head>
 <body>
 
+  <button class="dark-mode-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</button>
   <h1>EV Charging Platform</h1>
   <div class="subtitle">Admin Dashboard – Live Charger Status</div>
 
@@ -99,33 +166,43 @@
 
   <script>
     async function load() {
-      const res = await fetch('http://localhost:3000/admin/chargers');
-      const chargers = await res.json();
-
       const rows = document.getElementById('rows');
-      rows.innerHTML = '';
+      rows.innerHTML = '<tr><td colspan="5" class="muted">Loading...</td></tr>';
 
-      chargers.forEach(c => {
-        const tr = document.createElement('tr');
+      try {
+        const res = await fetch('http://localhost:3000/admin/chargers');
+        const chargers = await res.json();
 
-        tr.innerHTML = `
-          <td>${c.chargerId}</td>
-          <td class="muted">${c.connectedAt}</td>
-          <td>
-            <span class="badge ${c.registered ? 'ok' : 'warn'}">
-              ${c.registered ? 'Registered' : 'Pending'}
-            </span>
-          </td>
-          <td>${c.activeTransactionId ?? '-'}</td>
-          <td class="muted">${c.lastHeartbeatAt ?? '-'}</td>
-        `;
+        rows.innerHTML = '';
 
-        rows.appendChild(tr);
-      });
+        chargers.forEach(c => {
+          const tr = document.createElement('tr');
+
+          tr.innerHTML = `
+            <td>${c.chargerId}</td>
+            <td class="muted">${c.connectedAt}</td>
+            <td>
+              <span class="badge ${c.registered ? 'ok' : 'warn'}">
+                ${c.registered ? 'Registered' : 'Pending'}
+              </span>
+            </td>
+            <td>${c.activeTransactionId ?? '-'}</td>
+            <td class="muted">${c.lastHeartbeatAt ?? '-'}</td>
+          `;
+
+          rows.appendChild(tr);
+        });
+      } catch (error) {
+        rows.innerHTML = '<tr><td colspan="5" class="warn">Failed to load data</td></tr>';
+      }
     }
 
     load();
     setInterval(load, 2000);
+
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+    }
   </script>
 </body>
 </html>
