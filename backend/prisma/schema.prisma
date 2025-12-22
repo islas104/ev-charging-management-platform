@@ -29,15 +29,16 @@ model Charger {
 }
 
 model Transaction {
-  id         Int       @id @default(autoincrement())
-  chargerId  Int
-  charger    Charger  @relation(fields: [chargerId], references: [id])
-  idTag      String
-  meterStart Int
-  meterStop  Int?
-  startedAt  DateTime @default(now())
-  stoppedAt  DateTime?
-  stopReason String?
+  id                 Int       @id @default(autoincrement())
+  ocppTransactionId  Int       @unique   // ✅ REQUIRED
+  chargerId          Int
+  charger            Charger   @relation(fields: [chargerId], references: [id])
+  idTag              String
+  meterStart         Int
+  meterStop          Int?
+  startedAt          DateTime  @default(now())
+  stoppedAt          DateTime?
+  stopReason         String?
 }
 
 model AdminUser {

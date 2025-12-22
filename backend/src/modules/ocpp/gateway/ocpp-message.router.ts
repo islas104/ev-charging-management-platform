@@ -23,7 +23,7 @@ export async function routeOcppMessage(
   try {
     message = JSON.parse(rawMessage);
   } catch {
-    logger.warn('Invalid OCPP message (not JSON)');
+    logger.warn('Invalid OCPP message');
     return;
   }
 
@@ -31,21 +31,14 @@ export async function routeOcppMessage(
 
   if (messageType !== OcppMessageType.CALL) return;
 
+  const { chargerId } = (socket as any).ocpp;
+
   /* ---------- Heartbeat ---------- */
   if (action === 'Heartbeat') {
-    const { chargerId } = (socket as any).ocpp;
-
-    try {
-      await prisma.charger.update({
-        where: { chargerId },
-        data: {
-          lastSeenAt: new Date(),
-        },
-      });
-    } catch (err) {
-      logger.error(err, 'Heartbeat persistence failed');
-      // do NOT throw
-    }
+    await prisma.charger.update({
+      where: { chargerId },
+      data: { lastSeenAt: new Date() },
+    });
 
     const response: HeartbeatResponse = {
       currentTime: new Date().toISOString(),
@@ -61,28 +54,20 @@ export async function routeOcppMessage(
 
   /* ---------- BootNotification ---------- */
   if (action === 'BootNotification') {
-    const { chargerId, protocol } = (socket as any).ocpp;
-
-    try {
-      await prisma.charger.upsert({
-        where: { chargerId },
-        update: {
-          protocol,
-          registered: true,
-          lastSeenAt: new Date(),
-        },
-        create: {
-          chargerId,
-          protocol,
-          registered: true,
-          lastSeenAt: new Date(),
-          // IMPORTANT: no siteId here
-        },
-      });
-    } catch (err) {
-      logger.error(err, 'BootNotification persistence failed');
-      // do NOT throw
-    }
+    await prisma.charger.upsert({
+      where: { chargerId },
+      update: {
+        protocol: payload?.chargePointModel,
+        registered: true,
+        lastSeenAt: new Date(),
+      },
+      create: {
+        chargerId,
+        protocol: payload?.chargePointModel ?? 'ocpp1.6',
+        registered: true,
+        lastSeenAt: new Date(),
+      },
+    });
 
     const response: BootNotificationResponse = {
       status: 'Accepted',
@@ -100,10 +85,38 @@ export async function routeOcppMessage(
 
   /* ---------- StartTransaction ---------- */
   if (action === 'StartTransaction') {
-    const transactionId = ++transactionCounter;
+    const ocppTransactionId = ++transactionCounter;
+
+    const charger = await prisma.charger.findUnique({
+      where: { chargerId },
+    });
+
+    if (!charger) return;
+
+    // Prevent multiple active transactions
+    const existing = await prisma.transaction.findFirst({
+      where: {
+        chargerId: charger.id,
+        stoppedAt: null,
+      },
+    });
+
+    if (existing) {
+      logger.warn({ chargerId }, 'Active transaction already exists');
+      return;
+    }
+
+    await prisma.transaction.create({
+      data: {
+        ocppTransactionId,
+        chargerId: charger.id,
+        idTag: payload.idTag,
+        meterStart: payload.meterStart,
+      },
+    });
 
     const response: StartTransactionResponse = {
-      transactionId,
+      transactionId: ocppTransactionId,
       idTagInfo: { status: 'Accepted' },
     };
 
@@ -112,10 +125,7 @@ export async function routeOcppMessage(
     );
 
     logger.log(
-      {
-        transactionId,
-        idTag: payload?.idTag,
-      },
+      { chargerId, ocppTransactionId },
       'Transaction started',
     );
     return;
@@ -123,6 +133,18 @@ export async function routeOcppMessage(
 
   /* ---------- StopTransaction ---------- */
   if (action === 'StopTransaction') {
+    await prisma.transaction.updateMany({
+      where: {
+        ocppTransactionId: payload.transactionId,
+        stoppedAt: null,
+      },
+      data: {
+        meterStop: payload.meterStop,
+        stoppedAt: new Date(),
+        stopReason: payload.reason,
+      },
+    });
+
     const response: StopTransactionResponse = {
       idTagInfo: { status: 'Accepted' },
     };
@@ -132,12 +154,8 @@ export async function routeOcppMessage(
     );
 
     logger.log(
-      {
-        transactionId: payload?.transactionId,
-        reason: payload?.reason,
-      },
+      { chargerId, transactionId: payload.transactionId },
       'Transaction stopped',
     );
-    return;
   }
 }
