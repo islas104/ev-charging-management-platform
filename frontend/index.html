@@ -25,6 +25,8 @@
       --success-text: #166534;
       --loading-bg: #f3f4f6;
       --loading-text: #9ca3af;
+      --warn-bg: #fef3c7;
+      --warn-text: #92400e;
     }
 
     body {
@@ -88,6 +90,12 @@
       color: var(--success-text);
     }
 
+    /* ✅ real "connecting" / loading state */
+    .status.loading {
+      background: var(--warn-bg);
+      color: var(--warn-text);
+    }
+
     .panel {
       background: var(--panel-light);
       border: 1px solid var(--border);
@@ -139,17 +147,7 @@
     button:disabled {
       opacity: 0.45;
       cursor: not-allowed;
-    }
-
-    .loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--loading-bg);
-      color: var(--loading-text);
-      font-size: 0.85rem;
-      padding: 0.5rem;
-      border-radius: 6px;
+      transform: none;
     }
 
     .terminal {
@@ -192,8 +190,8 @@
 
 <body>
   <button class="dark-mode-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</button>
-  <div class="container">
 
+  <div class="container">
     <header>
       <h1>OCPP Charger Simulator</h1>
       <div class="subtitle">Charger ID: <strong>DEMO-CHARGER-001</strong></div>
@@ -245,24 +243,41 @@
     }
 
     function setStatus(type, text) {
-      const icon = type === 'disconnected' ? '🔴' : type === 'connected' ? '🟢' : '⚡';
+      const icon =
+        type === 'disconnected' ? '🔴' :
+        type === 'loading' ? '🟡' :
+        type === 'connected' ? '🟢' :
+        '⚡';
       statusEl.className = `status ${type}`;
       statusEl.innerHTML = `<span>${icon}</span><span>${text}</span>`;
     }
 
     function setButtons(state) {
-      bootBtn.disabled = state === 'disconnected';
+      // ✅ better UX: disable connect while connected/active/loading
+      connectBtn.disabled = state !== 'disconnected';
+
+      bootBtn.disabled = state === 'disconnected' || state === 'loading';
       startBtn.disabled = state !== 'connected';
       stopBtn.disabled = state !== 'active';
-      heartbeatBtn.disabled = state === 'disconnected';
+      heartbeatBtn.disabled = state === 'disconnected' || state === 'loading';
     }
 
     setButtons('disconnected');
 
     const id = () => Math.random().toString(36).substring(2, 8);
 
+    function isSocketOpen() {
+      return socket && socket.readyState === WebSocket.OPEN;
+    }
+
     function connect() {
+      if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+
       setStatus('loading', 'Connecting...');
+      setButtons('loading');
+
       socket = new WebSocket(
         'ws://localhost:3000/ocpp?chargerId=DEMO-CHARGER-001',
         ['ocpp1.6']
@@ -279,23 +294,33 @@
         setStatus('disconnected', 'Disconnected');
         setButtons('disconnected');
         log('DISCONNECTED', true);
+        activeTransactionId = null;
       };
 
       socket.onerror = () => {
         setStatus('disconnected', 'Error');
+        setButtons('disconnected');
         log('ERROR: WebSocket error', true);
       };
-      
+
       socket.onmessage = (e) => {
         log(`RECV  ${e.data}`);
-        const msg = JSON.parse(e.data);
-        if (msg[2]?.transactionId) {
-          activeTransactionId = msg[2].transactionId;
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg?.[2]?.transactionId) {
+            activeTransactionId = msg[2].transactionId;
+          }
+        } catch {
+          // ignore malformed frames in UI
         }
       };
     }
 
     function send(action, payload) {
+      if (!isSocketOpen()) {
+        log(`WARN  Cannot send ${action}: socket not connected`, true);
+        return;
+      }
       const msg = [2, id(), action, payload];
       socket.send(JSON.stringify(msg));
       log(`SEND  ${action}`);
@@ -320,12 +345,20 @@
     }
 
     function stop() {
+      if (!activeTransactionId) {
+        log('WARN  No active transactionId. Start a transaction first.', true);
+        setStatus('connected', 'Connected (Idle)');
+        setButtons('connected');
+        return;
+      }
+
       send('StopTransaction', {
         transactionId: activeTransactionId,
         meterStop: 12,
         timestamp: new Date().toISOString(),
         reason: 'Local'
       });
+
       activeTransactionId = null;
       setStatus('connected', 'Connected (Idle)');
       setButtons('connected');

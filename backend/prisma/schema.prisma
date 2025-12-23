@@ -15,22 +15,73 @@ model Site {
 }
 
 model Charger {
-  id           Int           @id @default(autoincrement())
-  chargerId    String        @unique
+  id           Int       @id @default(autoincrement())
+  chargerId    String    @unique
   protocol     String
-  registered   Boolean       @default(false)
+  registered   Boolean   @default(false)
   lastSeenAt   DateTime?
 
-  siteId       Int?          // ✅ OPTIONAL
-  site         Site?         @relation(fields: [siteId], references: [id])
+  siteId       Int?
+  site         Site?     @relation(fields: [siteId], references: [id])
 
   transactions Transaction[]
-  createdAt    DateTime      @default(now())
+
+  // NEW
+  connectors   ConnectorStatus[]
+  ocppMessages OcppMessageLog[]
+
+  createdAt    DateTime  @default(now())
+}
+
+model ConnectorStatus {
+  id            Int      @id @default(autoincrement())
+  chargerId     Int
+  charger       Charger  @relation(fields: [chargerId], references: [id])
+
+  connectorId   Int      // 1,2,3...
+  status        String   // Available, Charging, Faulted, Unavailable, etc.
+  errorCode     String?
+  vendorError   String?
+  info          String?
+
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  @@unique([chargerId, connectorId])
+  @@index([chargerId])
+  @@index([status])
+}
+
+model OcppMessageLog {
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+
+  chargerId   Int
+  charger     Charger  @relation(fields: [chargerId], references: [id])
+
+  // "IN" for request from charger, "OUT" for response sent back (or server->charger)
+  direction   String
+
+  // BootNotification, Heartbeat, StartTransaction, StopTransaction, MeterValues, Authorize, StatusNotification...
+  operation   String
+
+  // OCPP messageId (lets us pair request/response)
+  messageId   String?
+
+  // Raw payload stored as JSON
+  raw         Json
+
+  // Optional response status (Accepted/Rejected/etc)
+  status      String?
+
+  @@index([chargerId, createdAt])
+  @@index([operation])
+  @@index([messageId])
 }
 
 model Transaction {
   id                 Int       @id @default(autoincrement())
-  ocppTransactionId  Int       @unique   // ✅ REQUIRED
+  ocppTransactionId  Int       @unique
   chargerId          Int
   charger            Charger   @relation(fields: [chargerId], references: [id])
   idTag              String

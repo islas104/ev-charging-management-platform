@@ -1,190 +1,1282 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>EV Charging Platform – Admin</title>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Cloud Tunnel — Charger management (Demo)</title>
+    <style>
+      :root {
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --primary: #2563eb;
 
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f6f7f9;
-      padding: 2rem;
-      color: #222;
-    }
+        --online: #16a34a;
+        --offline: #64748b;
 
-    h1 {
-      margin-bottom: 0.25rem;
-    }
+        --blue: #2563eb;
+        --red: #ef4444;
+        --amber: #f59e0b;
+        --green: #16a34a;
+        --slate: #94a3b8;
 
-    h2 {
-      margin-top: 3rem;
-      margin-bottom: 0.75rem;
-    }
+        --radius: 14px;
+      }
 
-    .subtitle {
-      color: #666;
-      margin-bottom: 1.5rem;
-    }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+        background: var(--bg);
+        color: var(--text);
+      }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #fff;
-      border-radius: 6px;
-      overflow: hidden;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-    }
+      /* --- App shell --- */
+      .shell {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        min-height: 100vh;
+      }
 
-    th, td {
-      padding: 0.75rem;
-      text-align: left;
-      border-bottom: 1px solid #eee;
-      font-size: 0.9rem;
-      white-space: nowrap;
-    }
+      aside {
+        background: #fff;
+        border-right: 1px solid var(--border);
+        padding: 16px 14px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
 
-    th {
-      background: #fafafa;
-      font-weight: 600;
-      color: #444;
-    }
+      .side-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 900;
+        letter-spacing: -0.2px;
+        padding: 6px 8px 14px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 14px;
+      }
 
-    tr:last-child td {
-      border-bottom: none;
-    }
+      .brand-logo {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid var(--border);
+        background: #fff;
+        display: block;
+      }
 
-    .badge {
-      padding: 0.2rem 0.5rem;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      display: inline-block;
-    }
+      .nav {
+        display: grid;
+        gap: 6px;
+        padding: 6px;
+      }
 
-    .ok {
-      background: #e6f4ea;
-      color: #137333;
-    }
+      .nav a {
+        text-decoration: none;
+        color: var(--text);
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 12px;
+        font-weight: 700;
+      }
 
-    .warn {
-      background: #fce8e6;
-      color: #a50e0e;
-    }
+      .nav a.active {
+        background: #eef2ff;
+        color: #1d4ed8;
+      }
 
-    .muted {
-      color: #888;
-      font-size: 0.8rem;
-    }
+      .nav small {
+        color: var(--muted);
+        font-weight: 700;
+        margin: 12px 6px 6px;
+        display: block;
+      }
 
-    footer {
-      margin-top: 3rem;
-      font-size: 0.75rem;
-      color: #888;
-      text-align: center;
-    }
-  </style>
-</head>
+      header {
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
 
-<body>
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 18px;
+      }
 
-  <h1>EV Charging Platform</h1>
-  <div class="subtitle">Admin Dashboard – MVP</div>
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
 
-  <!-- ================= Chargers ================= -->
-  <h2>Connected Chargers</h2>
+      .kbd {
+        font-size: 12px;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 10px;
+        padding: 6px 8px;
+      }
 
-  <table>
-    <thead>
-      <tr>
-        <th>Charger ID</th>
-        <th>Connected At</th>
-        <th>Registered</th>
-        <th>Last Heartbeat</th>
-      </tr>
-    </thead>
-    <tbody id="chargers"></tbody>
-  </table>
+      .top-search {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 10px 12px;
+        min-width: 420px;
+        outline: none;
+      }
+      .top-search input {
+        border: 0;
+        outline: none;
+        width: 100%;
+        font-size: 14px;
+      }
 
-  <!-- ================= Transactions ================= -->
-  <h2>Transactions</h2>
+      /* --- Cards / panels --- */
+      .cards {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
 
-  <table>
-    <thead>
-      <tr>
-        <th>Charger</th>
-        <th>OCPP Tx ID</th>
-        <th>ID Tag</th>
-        <th>Meter Start</th>
-        <th>Meter Stop</th>
-        <th>Started</th>
-        <th>Stopped</th>
-        <th>Reason</th>
-      </tr>
-    </thead>
-    <tbody id="transactions"></tbody>
-  </table>
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        min-height: 92px;
+      }
+      .card .label {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .card .value {
+        margin-top: 8px;
+        font-size: 44px;
+        font-weight: 900;
+        letter-spacing: -1px;
+      }
 
-  <footer>
-    Cloud Tunnel · OCPP 1.6 · MVP
-  </footer>
+      .cards-2 {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
 
-  <script>
-    async function loadChargers() {
-      const res = await fetch('http://localhost:3000/admin/chargers');
-      const data = await res.json();
+      .panel {
+        margin-top: 16px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
 
-      const tbody = document.getElementById('chargers');
-      tbody.innerHTML = '';
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .panel-title {
+        font-size: 18px;
+        font-weight: 900;
+      }
+      .subtext { color: var(--muted); font-size: 12px; margin-top: 4px; }
 
-      data.forEach(c => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${c.chargerId}</td>
-          <td class="muted">${c.connectedAt ?? '-'}</td>
-          <td>
-            <span class="badge ${c.registered ? 'ok' : 'warn'}">
-              ${c.registered ? 'Registered' : 'Pending'}
-            </span>
-          </td>
-          <td class="muted">${c.lastHeartbeatAt ?? '-'}</td>
+      /* filter pills */
+      .filter-pills {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .filter-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #f8fafc;
+        font-weight: 800;
+        color: #334155;
+        cursor: pointer;
+        user-select: none;
+      }
+      .filter-pill .caret {
+        color: var(--muted);
+        font-weight: 900;
+      }
+      .filter-pill.active {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+        color: #1d4ed8;
+      }
+
+      .btn {
+        border: 0;
+        background: var(--primary);
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .btn.secondary {
+        background: #fff;
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      .btn.icon {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        font-size: 14px;
+        vertical-align: middle;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 800;
+        background: #fbfcfe;
+      }
+      tr:hover td { background: #fafcff; }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-size: 13px;
+        background: #fff;
+        font-weight: 800;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--offline);
+      }
+      .pill.online .dot { background: var(--online); }
+      .pill.offline .dot { background: var(--offline); }
+
+      .connectors {
+        display: inline-flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .connector-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--slate);
+        display: inline-block;
+        margin-left: 6px;
+      }
+      .connector-dot.green { background: var(--green); }
+      .connector-dot.blue { background: var(--blue); }
+      .connector-dot.red { background: var(--red); }
+      .connector-dot.amber { background: var(--amber); }
+
+      .meta {
+        color: var(--muted);
+        font-size: 12px;
+        padding: 10px 16px;
+      }
+
+      .section-title {
+        margin-top: 22px;
+        font-size: 28px;
+        font-weight: 950;
+        letter-spacing: -0.6px;
+      }
+
+      /* --- Drawer/modal for OCPP filter + message viewer --- */
+      .backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.35);
+        display: none;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 60px 18px;
+        z-index: 50;
+      }
+      .modal {
+        width: min(1100px, 100%);
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+        box-shadow: 0 30px 90px rgba(2, 6, 23, 0.28);
+      }
+      .modal-header {
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border);
+      }
+      .modal-title {
+        font-weight: 950;
+        font-size: 16px;
+      }
+      .modal-close {
+        border: 0;
+        background: #fff;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 6px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+      }
+      .modal-body {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        min-height: 420px;
+      }
+      .modal-side {
+        border-right: 1px solid var(--border);
+        padding: 14px 14px;
+        background: #fbfcfe;
+      }
+      .checklist {
+        display: grid;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .checklist label {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-weight: 800;
+        color: #334155;
+      }
+      .checklist input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+      }
+      .modal-main {
+        padding: 0;
+      }
+      .modal-main table th, .modal-main table td { padding: 10px 12px; }
+      .jsonbox {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        background: #0b1220;
+        color: #dbeafe;
+        padding: 12px;
+        border-radius: 12px;
+        overflow: auto;
+        max-height: 320px;
+        white-space: pre;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        padding: 12px 16px 16px;
+      }
+
+      .link {
+        color: #1d4ed8;
+        cursor: pointer;
+        text-decoration: none;
+        font-weight: 900;
+      }
+
+      @media (max-width: 1020px) {
+        .shell { grid-template-columns: 1fr; }
+        aside { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+        .top-search { min-width: 260px; width: 100%; }
+        .cards { grid-template-columns: 1fr; }
+        .cards-2 { grid-template-columns: 1fr; }
+        .modal-body { grid-template-columns: 1fr; }
+        .modal-side { border-right: 0; border-bottom: 1px solid var(--border); }
+        th:nth-child(3), td:nth-child(3) { display: none; }
+        .split { grid-template-columns: 1fr; }
+      }
+
+      /* --- Toasts --- */
+      .toast-wrap {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        display: grid;
+        gap: 10px;
+        z-index: 200;
+        max-width: min(560px, calc(100vw - 32px));
+        pointer-events: none;
+      }
+
+      .toast {
+        pointer-events: auto;
+        background: #0b1220;
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 14px;
+        padding: 12px 12px;
+        box-shadow: 0 18px 50px rgba(2, 6, 23, 0.32);
+        display: grid;
+        gap: 8px;
+        animation: toastIn 160ms ease-out;
+      }
+
+      .toast-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .toast-title {
+        font-weight: 950;
+        letter-spacing: -0.2px;
+        font-size: 13px;
+      }
+
+      .toast-msg {
+        color: #cbd5e1;
+        font-size: 13px;
+        line-height: 1.35;
+        word-break: break-word;
+      }
+
+      .toast .x {
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: transparent;
+        color: #e2e8f0;
+        border-radius: 10px;
+        padding: 4px 8px;
+        cursor: pointer;
+      }
+
+      .toast.info { border-left: 4px solid #60a5fa; }
+      .toast.success { border-left: 4px solid #22c55e; }
+      .toast.warn { border-left: 4px solid #f59e0b; }
+      .toast.error { border-left: 4px solid #ef4444; }
+
+      @keyframes toastIn {
+        from { transform: translateY(6px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="shell">
+      <aside>
+        <div class="side-brand">
+          <img class="brand-logo" src="./assets/cloud-tunnel.png" alt="Cloud Tunnel" />
+          <div>
+            <div>Cloud Tunnel</div>
+            <div class="subtext" style="margin-top:2px">Admin</div>
+          </div>
+        </div>
+
+        <div class="nav">
+          <a href="#dashboard" id="navDashboard" class="active">Dashboard</a>
+          <a href="#chargers" id="navChargers">Chargers</a>
+          <small>Account</small>
+          <a href="#signout" id="navSignout">Sign out</a>
+        </div>
+
+        <div class="meta" style="padding:10px 6px;">
+          Backend: <code id="apiBase">http://localhost:3000</code><br />
+          Poll: <span id="pollSeconds">3</span>s
+        </div>
+      </aside>
+
+      <div>
+        <header>
+          <div class="row" style="flex:1;">
+            <div class="top-search" title="Search">
+              <span style="color: var(--muted); font-weight: 900;">⌕</span>
+              <input id="globalSearch" placeholder="Find your next charge" />
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="kbd">ctrl+k</span>
+            <button class="btn secondary" id="btnRefresh">Refresh</button>
+            <button class="btn" id="btnConnect">Connect new chargers</button>
+          </div>
+        </header>
+
+        <main>
+          <!-- DASHBOARD VIEW -->
+          <section id="viewDashboard">
+            <div class="section-title">Dashboard</div>
+
+            <div class="cards">
+              <div class="card">
+                <div class="label">Online chargers</div>
+                <div class="value" id="onlineCount">—</div>
+              </div>
+              <div class="card">
+                <div class="label">Offline chargers</div>
+                <div class="value" id="offlineCount">—</div>
+              </div>
+              <div class="card">
+                <div class="label">Charge locations</div>
+                <div class="value" id="locationsCount">—</div>
+              </div>
+            </div>
+
+            <div class="cards-2">
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">Faulted chargers</div>
+                    <div class="subtext">These chargers recently reported an error</div>
+                  </div>
+                </div>
+                <div style="padding: 16px; color: var(--muted);" id="faultedList">No faulted chargers</div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">Offline chargers</div>
+                    <div class="subtext">These chargers recently lost their internet connection</div>
+                  </div>
+                </div>
+                <div style="padding: 16px; color: var(--muted);" id="offlineList">No offline chargers</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- CHARGERS VIEW -->
+          <section id="viewChargers" style="display:none;">
+            <div class="section-title">Customise and control your chargers</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div class="filter-pills">
+                  <div class="filter-pill" id="pillConnectivity">＋ Connectivity <span class="caret">▾</span></div>
+                  <div class="filter-pill" id="pillConnectorStatus">＋ Connector status <span class="caret">▾</span></div>
+                  <div class="filter-pill" id="pillChargerStatus">＋ Charger status <span class="caret">▾</span></div>
+                  <div class="filter-pill" id="pillFirmware">＋ Firmware version <span class="caret">▾</span></div>
+                </div>
+
+                <div class="row">
+                  <button class="btn secondary icon" id="btnEditCols">⚙︎ Edit columns</button>
+                </div>
+              </div>
+
+              <div class="panel-header" style="border-bottom: 0; padding-top: 0;">
+                <div class="subtext" id="lastUpdated">Last updated: —</div>
+              </div>
+
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 320px;">Name</th>
+                      <th style="min-width: 240px;">Location</th>
+                      <th style="min-width: 220px;">Connectors</th>
+                      <th style="min-width: 180px;">Connectivity</th>
+                      <th style="min-width: 220px;">Last message</th>
+                    </tr>
+                  </thead>
+                  <tbody id="chargersTbody">
+                    <tr><td colspan="5" style="color: var(--muted);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- OCPP Messages modal -->
+    <div class="backdrop" id="messagesBackdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <div class="modal-title" id="messagesTitle">Filter by OCPP Operation</div>
+          <button class="modal-close" id="messagesClose" aria-label="Close">×</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-side">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-weight:950;">Filter by OCPP Operation:</div>
+              <button class="btn secondary" id="btnOpsClear">Clear</button>
+            </div>
+            <div class="checklist" id="opsChecklist" aria-label="OCPP operations checklist">
+              <div style="color: var(--muted);">Loading…</div>
+            </div>
+
+            <div style="margin-top: 12px;" class="row">
+              <button class="btn" id="btnOpsApply">Apply</button>
+              <button class="btn secondary" id="btnOpsRefresh">Refresh</button>
+            </div>
+
+            <div class="subtext" style="margin-top: 12px;">
+              Charger: <span id="selectedChargerId">—</span>
+            </div>
+          </div>
+
+          <div class="modal-main">
+            <div style="padding: 10px 16px; border-bottom: 1px solid var(--border); display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <button class="btn secondary" id="btnMsgsPrev">‹ Prev</button>
+              <button class="btn secondary" id="btnMsgsNext">Next ›</button>
+              <div class="subtext" id="msgsMeta">—</div>
+            </div>
+
+            <div style="overflow:auto; max-height: 420px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="min-width: 180px;">OcppOperation</th>
+                    <th style="min-width: 260px;">Message</th>
+                    <th style="min-width: 260px;">Response</th>
+                  </tr>
+                </thead>
+                <tbody id="messagesTbody">
+                  <tr><td colspan="3" style="color: var(--muted);">Select a charger…</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="split" id="msgDetails" style="display:none;">
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between; margin-bottom:8px;">
+                  <div style="font-weight:950;">Message</div>
+                  <button class="btn secondary" id="btnCopyMsg">Copy</button>
+                </div>
+                <div class="jsonbox" id="msgJson">—</div>
+              </div>
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between; margin-bottom:8px;">
+                  <div style="font-weight:950;">Response</div>
+                  <button class="btn secondary" id="btnCopyRes">Copy</button>
+                </div>
+                <div class="jsonbox" id="resJson">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = 'http://localhost:3000';
+      const POLL_MS = 3000;
+      const ONLINE_WINDOW_SECONDS = 120;
+
+      const STORAGE_KEY = 'ct_admin_ui_v1';
+
+      const els = {
+        apiBase: document.getElementById('apiBase'),
+        pollSeconds: document.getElementById('pollSeconds'),
+
+        navDashboard: document.getElementById('navDashboard'),
+        navChargers: document.getElementById('navChargers'),
+
+        viewDashboard: document.getElementById('viewDashboard'),
+        viewChargers: document.getElementById('viewChargers'),
+
+        globalSearch: document.getElementById('globalSearch'),
+
+        onlineCount: document.getElementById('onlineCount'),
+        offlineCount: document.getElementById('offlineCount'),
+        locationsCount: document.getElementById('locationsCount'),
+        lastUpdated: document.getElementById('lastUpdated'),
+
+        faultedList: document.getElementById('faultedList'),
+        offlineList: document.getElementById('offlineList'),
+
+        chargersTbody: document.getElementById('chargersTbody'),
+
+        btnRefresh: document.getElementById('btnRefresh'),
+        btnConnect: document.getElementById('btnConnect'),
+
+        pillConnectivity: document.getElementById('pillConnectivity'),
+        pillConnectorStatus: document.getElementById('pillConnectorStatus'),
+        pillChargerStatus: document.getElementById('pillChargerStatus'),
+        pillFirmware: document.getElementById('pillFirmware'),
+        btnEditCols: document.getElementById('btnEditCols'),
+
+        toastWrap: document.getElementById('toastWrap'),
+
+        // modal
+        messagesBackdrop: document.getElementById('messagesBackdrop'),
+        messagesClose: document.getElementById('messagesClose'),
+        opsChecklist: document.getElementById('opsChecklist'),
+        btnOpsApply: document.getElementById('btnOpsApply'),
+        btnOpsClear: document.getElementById('btnOpsClear'),
+        btnOpsRefresh: document.getElementById('btnOpsRefresh'),
+        selectedChargerId: document.getElementById('selectedChargerId'),
+        messagesTbody: document.getElementById('messagesTbody'),
+        msgsMeta: document.getElementById('msgsMeta'),
+        btnMsgsPrev: document.getElementById('btnMsgsPrev'),
+        btnMsgsNext: document.getElementById('btnMsgsNext'),
+        msgDetails: document.getElementById('msgDetails'),
+        msgJson: document.getElementById('msgJson'),
+        resJson: document.getElementById('resJson'),
+        btnCopyMsg: document.getElementById('btnCopyMsg'),
+        btnCopyRes: document.getElementById('btnCopyRes'),
+      };
+
+      els.apiBase.textContent = API_BASE;
+      els.pollSeconds.textContent = String(Math.round(POLL_MS / 1000));
+
+      let chargersCache = [];
+      let selectedCharger = null;
+
+      let opsCache = [];
+      let opsSelected = new Set();
+
+      let msgsPage = { take: 25, skip: 0, total: 0, items: [] };
+      let selectedMsgId = null;
+
+      // UI state
+      let messagesPollTimer = null;
+      let connectivityFilter = 'all'; // all | online | offline
+      let overviewTimer = null;
+
+      function toast(type, title, message, timeoutMs = 2600) {
+        const wrap = els.toastWrap;
+        if (!wrap) return;
+
+        const t = document.createElement('div');
+        t.className = `toast ${type || 'info'}`;
+        t.innerHTML = `
+          <div class="toast-top">
+            <div class="toast-title">${escapeHtml(title || 'Notice')}</div>
+            <button class="x" aria-label="Dismiss">✕</button>
+          </div>
+          <div class="toast-msg">${escapeHtml(message || '')}</div>
         `;
-        tbody.appendChild(tr);
+
+        const remove = () => {
+          if (t && t.parentNode) t.parentNode.removeChild(t);
+        };
+
+        t.querySelector('.x')?.addEventListener('click', remove);
+        wrap.appendChild(t);
+
+        if (timeoutMs > 0) setTimeout(remove, timeoutMs);
+      }
+
+      function loadUiState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+          const s = JSON.parse(raw);
+          if (typeof s?.connectivityFilter === 'string') connectivityFilter = s.connectivityFilter;
+          if (typeof s?.globalSearch === 'string') els.globalSearch.value = s.globalSearch;
+        } catch { /* ignore */ }
+      }
+
+      function saveUiState() {
+        try {
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              connectivityFilter,
+              globalSearch: els.globalSearch.value || '',
+            }),
+          );
+        } catch { /* ignore */ }
+      }
+
+      function fmtDate(value) {
+        if (!value) return '—';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return String(value);
+        return d.toLocaleString();
+      }
+
+      function getViewFromHash() {
+        const h = (location.hash || '#dashboard').replace('#', '').trim();
+        if (h.startsWith('chargers')) return 'chargers';
+        return 'dashboard';
+      }
+
+      function setActiveNav(view) {
+        els.navDashboard.classList.toggle('active', view === 'dashboard');
+        els.navChargers.classList.toggle('active', view === 'chargers');
+        els.viewDashboard.style.display = view === 'dashboard' ? '' : 'none';
+        els.viewChargers.style.display = view === 'chargers' ? '' : 'none';
+      }
+
+      function statusToDotClass(status) {
+        const s = String(status || '').toLowerCase();
+        if (!s) return '';
+        if (s.includes('fault')) return 'red';
+        if (s.includes('charging')) return 'blue';
+        if (s.includes('available')) return 'green';
+        if (s.includes('unavailable')) return 'amber';
+        if (s.includes('occupied')) return 'blue';
+        return '';
+      }
+
+      function connectorCell(connectors) {
+        if (!Array.isArray(connectors) || connectors.length === 0) return '—';
+        const parts = connectors.map(c => {
+          const cls = statusToDotClass(c.status);
+          return `${c.connectorId}: <span class="connector-dot ${cls}"></span>`;
+        });
+        return parts.join(' &nbsp; ');
+      }
+
+      function matchesGlobalSearch(c) {
+        const q = (els.globalSearch.value || '').trim().toLowerCase();
+        if (q) {
+          const hay = `${c.name ?? ''} ${c.chargerId ?? ''} ${c.location ?? ''}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        if (connectivityFilter !== 'all') {
+          if (String(c.connectivity || '').toLowerCase() !== connectivityFilter) return false;
+        }
+        return true;
+      }
+
+      function renderConnectivityPill() {
+        const label =
+          connectivityFilter === 'online' ? 'Connectivity: Online' :
+          connectivityFilter === 'offline' ? 'Connectivity: Offline' :
+          'Connectivity: All';
+
+        els.pillConnectivity.innerHTML = `${label} <span class="caret">▾</span>`;
+        els.pillConnectivity.classList.toggle('active', connectivityFilter !== 'all');
+      }
+
+      function renderChargers() {
+        renderConnectivityPill();
+
+        const rows = chargersCache.filter(matchesGlobalSearch);
+
+        if (!rows.length) {
+          els.chargersTbody.innerHTML = `<tr><td colspan="5" style="color: var(--muted);">No chargers match your filters.</td></tr>`;
+          return;
+        }
+
+        els.chargersTbody.innerHTML = rows.map(c => {
+          const isOnline = String(c.connectivity).toLowerCase() === 'online';
+          const pillClass = isOnline ? 'online' : 'offline';
+
+          const click = `data-charger="${String(c.chargerId).replace(/"/g, '&quot;')}"`;
+
+          return `
+            <tr ${click} style="cursor:pointer;">
+              <td>
+                <div style="font-weight: 900;">${c.name ?? '—'}</div>
+                <div class="subtext">ID: ${c.chargerId ?? '—'}</div>
+              </td>
+              <td>${c.location ?? '—'}</td>
+              <td><span class="connectors">${connectorCell(c.connectors)}</span></td>
+              <td>
+                <span class="pill ${pillClass}">
+                  <span class="dot"></span>
+                  ${c.connectivity ?? '—'}
+                </span>
+              </td>
+              <td>${fmtDate(c.lastMessageAt)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function renderDashboardLists() {
+        const faulted = chargersCache.filter(c =>
+          (c.connectors || []).some(x => String(x.status || '').toLowerCase().includes('fault')),
+        );
+
+        const offline = chargersCache.filter(c => String(c.connectivity || '').toLowerCase() === 'offline');
+
+        els.faultedList.innerHTML = faulted.length
+          ? `<div style="display:grid;gap:8px;">${faulted.map(c => `<div><span style="font-weight:900;">${escapeHtml(c.name)}</span><div class="subtext">ID: ${escapeHtml(c.chargerId)}</div></div>`).join('')}</div>`
+          : 'No faulted chargers';
+
+        els.offlineList.innerHTML = offline.length
+          ? `<div style="display:grid;gap:8px;">${offline.map(c => `<div><span style="font-weight:900;">${escapeHtml(c.name)}</span><div class="subtext">ID: ${escapeHtml(c.chargerId)}</div></div>`).join('')}</div>`
+          : 'No offline chargers';
+      }
+
+      async function fetchJson(url) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        return res.json();
+      }
+
+      async function refreshOverviewAndChargers() {
+        const [overview, chargers] = await Promise.all([
+          fetchJson(`${API_BASE}/admin/overview?onlineWindowSeconds=${ONLINE_WINDOW_SECONDS}`),
+          fetchJson(`${API_BASE}/admin/chargers-view?onlineWindowSeconds=${ONLINE_WINDOW_SECONDS}`),
+        ]);
+
+        els.onlineCount.textContent = overview?.totals?.onlineChargers ?? '—';
+        els.offlineCount.textContent = overview?.totals?.offlineChargers ?? '—';
+        els.locationsCount.textContent = overview?.totals?.chargeLocations ?? '—';
+
+        chargersCache = Array.isArray(chargers) ? chargers : [];
+
+        renderChargers();
+        renderDashboardLists();
+
+        els.lastUpdated.textContent = `Last updated: ${new Date().toLocaleString()}`;
+      }
+
+      function openMessagesModal(chargerId) {
+        selectedCharger = chargerId;
+        selectedMsgId = null;
+        msgsPage = { take: 25, skip: 0, total: 0, items: [] };
+        els.selectedChargerId.textContent = chargerId;
+        els.messagesBackdrop.style.display = 'flex';
+        els.messagesBackdrop.setAttribute('aria-hidden', 'false');
+        els.msgDetails.style.display = 'none';
+        els.msgJson.textContent = '—';
+        els.resJson.textContent = '—';
+
+        loadOperations().then(() => loadMessages());
+
+        if (messagesPollTimer) clearInterval(messagesPollTimer);
+        messagesPollTimer = setInterval(() => {
+          if (els.messagesBackdrop.style.display === 'flex' && !document.hidden) {
+            loadMessages().catch(() => {});
+          }
+        }, POLL_MS);
+      }
+
+      function closeMessagesModal() {
+        els.messagesBackdrop.style.display = 'none';
+        els.messagesBackdrop.setAttribute('aria-hidden', 'true');
+
+        if (messagesPollTimer) {
+          clearInterval(messagesPollTimer);
+          messagesPollTimer = null;
+        }
+      }
+
+      async function loadOperations() {
+        const ops = await fetchJson(`${API_BASE}/admin/ocpp/operations`);
+        opsCache = Array.isArray(ops) ? ops : [];
+        opsSelected = new Set([...opsSelected].filter(x => opsCache.includes(x)));
+        renderOpsChecklist();
+      }
+
+      function renderOpsChecklist() {
+        if (!opsCache.length) {
+          els.opsChecklist.innerHTML = `<div style="color: var(--muted);">No operations yet (send OCPP messages first).</div>`;
+          return;
+        }
+        els.opsChecklist.innerHTML = opsCache.map(op => {
+          const checked = opsSelected.has(op) ? 'checked' : '';
+          const id = `op_${op.replace(/[^a-z0-9]/gi, '_')}`;
+          return `
+            <label for="${id}">
+              <input type="checkbox" id="${id}" data-op="${op}" ${checked} />
+              ${escapeHtml(op)}
+            </label>
+          `;
+        }).join('');
+      }
+
+      function getOpQuery() {
+        const ops = [...opsSelected];
+        return ops.length ? `&operation=${encodeURIComponent(ops.join(','))}` : '';
+      }
+
+      async function loadMessages() {
+        if (!selectedCharger) return;
+
+        els.messagesTbody.innerHTML = `<tr><td colspan="3" style="color: var(--muted);">Loading…</td></tr>`;
+
+        const url = `${API_BASE}/admin/chargers/${encodeURIComponent(selectedCharger)}/messages?take=${msgsPage.take}&skip=${msgsPage.skip}${getOpQuery()}`;
+        const data = await fetchJson(url);
+
+        msgsPage.total = Number(data.total ?? 0);
+        msgsPage.items = Array.isArray(data.items) ? data.items : [];
+
+        renderMessagesTable();
+      }
+
+      function renderMessagesTable() {
+        const items = msgsPage.items;
+
+        if (!msgsPage.total) {
+          els.msgsMeta.textContent = '—';
+        } else {
+          els.msgsMeta.textContent = `Showing ${msgsPage.skip + 1}-${Math.min(msgsPage.skip + msgsPage.take, msgsPage.total)} of ${msgsPage.total}`;
+        }
+
+        if (!items.length) {
+          els.messagesTbody.innerHTML = `<tr><td colspan="3" style="color: var(--muted);">No messages for this filter.</td></tr>`;
+          return;
+        }
+
+        const byId = new Map();
+        for (const it of items) {
+          const key = String(it.messageId ?? it.id);
+          const cur = byId.get(key) || { operation: it.operation, in: null, out: null };
+          if (String(it.direction).toUpperCase() === 'IN') cur.in = it;
+          else cur.out = it;
+          cur.operation = cur.operation || it.operation;
+          byId.set(key, cur);
+        }
+
+        const rows = [...byId.values()];
+
+        els.messagesTbody.innerHTML = rows.map(r => {
+          const msgPreview = r.in ? JSON.stringify(r.in.raw ?? {}) : '—';
+          const resPreview = r.out ? JSON.stringify(r.out.raw ?? {}) : '—';
+          const openId = r.in?.id ?? r.out?.id;
+
+          return `
+            <tr data-msgid="${openId}" style="cursor:pointer;">
+              <td style="font-weight:900;">${escapeHtml(r.operation ?? '—')}</td>
+              <td><a class="link" data-msgid="${openId}">${escapeHtml(msgPreview).slice(0, 120)}${msgPreview.length > 120 ? '…' : ''}</a></td>
+              <td>${escapeHtml(resPreview).slice(0, 120)}${resPreview.length > 120 ? '…' : ''}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#039;');
+      }
+
+      function showMessageDetails(msgId) {
+        const item = msgsPage.items.find(x => x.id === Number(msgId));
+        if (!item) return;
+
+        const msgKey = String(item.messageId ?? item.id);
+        const inMsg = msgsPage.items.find(x => String(x.messageId ?? x.id) === msgKey && String(x.direction).toUpperCase() === 'IN');
+        const outMsg = msgsPage.items.find(x => String(x.messageId ?? x.id) === msgKey && String(x.direction).toUpperCase() === 'OUT');
+
+        els.msgDetails.style.display = '';
+        els.msgJson.textContent = JSON.stringify(inMsg?.raw ?? {}, null, 2);
+        els.resJson.textContent = JSON.stringify(outMsg?.raw ?? {}, null, 2);
+
+        selectedMsgId = msgKey;
+      }
+
+      async function copyText(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+          toast('success', 'Copied', 'Copied to clipboard.');
+        } catch {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          toast('success', 'Copied', 'Copied to clipboard.');
+        }
+      }
+
+      function startOverviewPoll() {
+        if (overviewTimer) return;
+        overviewTimer = setInterval(() => {
+          if (document.hidden) return;
+          refreshOverviewAndChargers().catch(() => {});
+        }, POLL_MS);
+      }
+
+      function stopOverviewPoll() {
+        if (!overviewTimer) return;
+        clearInterval(overviewTimer);
+        overviewTimer = null;
+      }
+
+      // --- Events ---
+      window.addEventListener('hashchange', () => setActiveNav(getViewFromHash()));
+
+      els.globalSearch.addEventListener('input', () => {
+        saveUiState();
+        renderChargers();
+        renderDashboardLists();
       });
-    }
 
-    async function loadTransactions() {
-      const res = await fetch('http://localhost:3000/admin/transactions');
-      const data = await res.json();
-
-      const tbody = document.getElementById('transactions');
-      tbody.innerHTML = '';
-
-      data.forEach(t => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${t.chargerId}</td>
-          <td>${t.ocppTransactionId}</td>
-          <td>${t.idTag}</td>
-          <td>${t.meterStart}</td>
-          <td>${t.meterStop ?? '-'}</td>
-          <td class="muted">${new Date(t.startedAt).toLocaleString()}</td>
-          <td class="muted">${t.stoppedAt ? new Date(t.stoppedAt).toLocaleString() : '-'}</td>
-          <td>${t.stopReason ?? '-'}</td>
-        `;
-        tbody.appendChild(tr);
+      els.btnRefresh.addEventListener('click', async () => {
+        try {
+          await refreshOverviewAndChargers();
+          toast('success', 'Refreshed', 'Updated overview and chargers.');
+        } catch (err) {
+          toast('error', 'Refresh failed', String(err?.message || err));
+        }
       });
-    }
 
-    async function refresh() {
-      await Promise.all([
-        loadChargers(),
-        loadTransactions(),
-      ]);
-    }
+      els.btnConnect.addEventListener('click', () => {
+        toast('info', 'Simulator', 'Connect chargers via the simulator at frontend/index.html');
+      });
 
-    refresh();
-    setInterval(refresh, 3000);
-  </script>
+      els.btnEditCols.addEventListener('click', () => {
+        toast('info', 'Columns', 'This prototype uses fixed columns.');
+      });
 
-</body>
+      // Connectivity pill cycles All -> Online -> Offline -> All
+      els.pillConnectivity.addEventListener('click', () => {
+        connectivityFilter =
+          connectivityFilter === 'all' ? 'online' :
+          connectivityFilter === 'online' ? 'offline' :
+          'all';
+        saveUiState();
+        renderChargers();
+      });
+
+      // Other pills (non-blocking messaging)
+      els.pillChargerStatus.addEventListener('click', () => toast('info', 'Charger status', 'Not wired in this prototype.'));
+      els.pillFirmware.addEventListener('click', () => toast('info', 'Firmware', 'Not wired in this prototype.'));
+
+      // open modal using "Connector status" pill
+      els.pillConnectorStatus.addEventListener('click', () => {
+        if (!selectedCharger) {
+          const first = chargersCache.find(matchesGlobalSearch);
+          if (!first) return toast('warn', 'No chargers', 'No chargers to view.');
+          openMessagesModal(first.chargerId);
+          return;
+        }
+        openMessagesModal(selectedCharger);
+      });
+
+      // row click to open message log modal
+      els.chargersTbody.addEventListener('click', (e) => {
+        const tr = e.target.closest('tr[data-charger]');
+        if (!tr) return;
+        const chargerId = tr.getAttribute('data-charger');
+        if (!chargerId) return;
+        selectedCharger = chargerId;
+        openMessagesModal(chargerId);
+      });
+
+      // modal close
+      els.messagesClose.addEventListener('click', closeMessagesModal);
+      els.messagesBackdrop.addEventListener('click', (e) => {
+        if (e.target === els.messagesBackdrop) closeMessagesModal();
+      });
+
+      // ops checklist change
+      els.opsChecklist.addEventListener('change', (e) => {
+        const cb = e.target.closest('input[type="checkbox"][data-op]');
+        if (!cb) return;
+        const op = cb.getAttribute('data-op');
+        if (!op) return;
+        if (cb.checked) opsSelected.add(op);
+        else opsSelected.delete(op);
+      });
+
+      els.btnOpsClear.addEventListener('click', () => {
+        opsSelected = new Set();
+        renderOpsChecklist();
+      });
+
+      els.btnOpsApply.addEventListener('click', () => {
+        msgsPage.skip = 0;
+        loadMessages().catch(err => toast('error', 'Messages failed', String(err?.message || err)));
+      });
+
+      els.btnOpsRefresh.addEventListener('click', () =>
+        loadOperations().catch(err => toast('error', 'Operations failed', String(err?.message || err)))
+      );
+
+      els.btnMsgsPrev.addEventListener('click', () => {
+        msgsPage.skip = Math.max(0, msgsPage.skip - msgsPage.take);
+        loadMessages().catch(err => toast('error', 'Messages failed', String(err?.message || err)));
+      });
+
+      els.btnMsgsNext.addEventListener('click', () => {
+        if (msgsPage.skip + msgsPage.take >= msgsPage.total) return;
+        msgsPage.skip = msgsPage.skip + msgsPage.take;
+        loadMessages().catch(err => toast('error', 'Messages failed', String(err?.message || err)));
+      });
+
+      // click message row to show JSON
+      els.messagesTbody.addEventListener('click', (e) => {
+        const el = e.target.closest('[data-msgid]');
+        if (!el) return;
+        const msgId = el.getAttribute('data-msgid');
+        if (!msgId) return;
+        showMessageDetails(msgId);
+      });
+
+      els.btnCopyMsg.addEventListener('click', () => copyText(els.msgJson.textContent || ''));
+      els.btnCopyRes.addEventListener('click', () => copyText(els.resJson.textContent || ''));
+
+      // ESC closes modal
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && els.messagesBackdrop.style.display === 'flex') {
+          closeMessagesModal();
+        }
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopOverviewPoll();
+        else {
+          refreshOverviewAndChargers().catch(() => {});
+          startOverviewPoll();
+        }
+      });
+
+      // --- Initial load ---
+      loadUiState();
+      setActiveNav(getViewFromHash());
+
+      async function boot() {
+        try {
+          await refreshOverviewAndChargers();
+          startOverviewPoll();
+        } catch (e) {
+          toast('error', 'Boot failed', String(e?.message || e), 5000);
+          startOverviewPoll();
+        }
+      }
+
+      boot();
+    </script>
+  </body>
 </html>

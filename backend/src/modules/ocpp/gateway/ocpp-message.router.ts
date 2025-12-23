@@ -1,6 +1,7 @@
 import { WebSocket } from 'ws';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 import { OcppMessageType } from '../types/ocpp-message';
 import { HeartbeatResponse } from '../types/heartbeat';
@@ -9,6 +10,16 @@ import {
   StartTransactionResponse,
   StopTransactionResponse,
 } from '../types/transaction';
+
+type StatusNotificationRequest = {
+  connectorId: number;
+  errorCode: string;
+  status: string;
+  timestamp?: string;
+  info?: string;
+  vendorId?: string;
+  vendorErrorCode?: string;
+};
 
 let transactionCounter = 1000;
 
@@ -32,6 +43,30 @@ export async function routeOcppMessage(
 
   const { chargerId } = (socket as any).ocpp;
 
+  // Ensure charger exists so we can persist logs + statuses
+  const chargerRow = await prisma.charger.upsert({
+    where: { chargerId },
+    update: { lastSeenAt: new Date() },
+    create: {
+      chargerId,
+      protocol: 'ocpp1.6',
+      registered: false,
+      lastSeenAt: new Date(),
+    },
+    select: { id: true, chargerId: true },
+  });
+
+  // Log incoming OCPP request
+  await prisma.ocppMessageLog.create({
+    data: {
+      chargerId: chargerRow.id,
+      direction: 'IN',
+      operation: String(action),
+      messageId: String(messageId),
+      raw: (payload ?? {}) as Prisma.InputJsonValue,
+    },
+  });
+
   /* ---------- Heartbeat ---------- */
   if (action === 'Heartbeat') {
     await prisma.charger.update({
@@ -46,6 +81,17 @@ export async function routeOcppMessage(
     socket.send(
       JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
     );
+
+    // Log outgoing response
+    await prisma.ocppMessageLog.create({
+      data: {
+        chargerId: chargerRow.id,
+        direction: 'OUT',
+        operation: 'Heartbeat',
+        messageId: String(messageId),
+        raw: response as unknown as Prisma.InputJsonValue,
+      },
+    });
 
     logger.log({ chargerId }, 'Heartbeat received');
     return;
@@ -77,6 +123,18 @@ export async function routeOcppMessage(
     socket.send(
       JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
     );
+
+    // Log outgoing response
+    await prisma.ocppMessageLog.create({
+      data: {
+        chargerId: chargerRow.id,
+        direction: 'OUT',
+        operation: 'BootNotification',
+        messageId: String(messageId),
+        raw: response as unknown as Prisma.InputJsonValue,
+        status: response.status,
+      },
+    });
 
     logger.log({ chargerId }, 'BootNotification accepted');
     return;
@@ -119,6 +177,18 @@ export async function routeOcppMessage(
       JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
     );
 
+    // Log outgoing response
+    await prisma.ocppMessageLog.create({
+      data: {
+        chargerId: chargerRow.id,
+        direction: 'OUT',
+        operation: 'StartTransaction',
+        messageId: String(messageId),
+        raw: response as unknown as Prisma.InputJsonValue,
+        status: response.idTagInfo?.status ?? null,
+      },
+    });
+
     logger.log(
       { chargerId, ocppTransactionId },
       'Transaction started and persisted',
@@ -148,9 +218,74 @@ export async function routeOcppMessage(
       JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
     );
 
+    // Log outgoing response
+    await prisma.ocppMessageLog.create({
+      data: {
+        chargerId: chargerRow.id,
+        direction: 'OUT',
+        operation: 'StopTransaction',
+        messageId: String(messageId),
+        raw: response as unknown as Prisma.InputJsonValue,
+        status: response.idTagInfo?.status ?? null,
+      },
+    });
+
     logger.log(
       { chargerId, ocppTransactionId: payload.transactionId },
       'Transaction stopped',
+    );
+
+    return;
+  }
+
+  /* ---------- StatusNotification ---------- */
+  if (action === 'StatusNotification') {
+    const req = payload as StatusNotificationRequest;
+
+    // Persist connector status (for the colored dots in the chargers table)
+    await prisma.connectorStatus.upsert({
+      where: {
+        chargerId_connectorId: {
+          chargerId: chargerRow.id,
+          connectorId: Number(req.connectorId),
+        },
+      },
+      update: {
+        status: String(req.status),
+        errorCode: req.errorCode ? String(req.errorCode) : null,
+        vendorError: req.vendorErrorCode ? String(req.vendorErrorCode) : null,
+        info: req.info ? String(req.info) : null,
+      },
+      create: {
+        chargerId: chargerRow.id,
+        connectorId: Number(req.connectorId),
+        status: String(req.status),
+        errorCode: req.errorCode ? String(req.errorCode) : null,
+        vendorError: req.vendorErrorCode ? String(req.vendorErrorCode) : null,
+        info: req.info ? String(req.info) : null,
+      },
+    });
+
+    const response = {};
+
+    socket.send(
+      JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
+    );
+
+    // Log outgoing response
+    await prisma.ocppMessageLog.create({
+      data: {
+        chargerId: chargerRow.id,
+        direction: 'OUT',
+        operation: 'StatusNotification',
+        messageId: String(messageId),
+        raw: response as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    logger.log(
+      { chargerId, connectorId: req.connectorId, status: req.status },
+      'StatusNotification persisted',
     );
 
     return;
