@@ -501,6 +501,15 @@
         from { transform: translateY(6px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
+
+      /* chart sizing */
+      .chart-box {
+        position: relative;
+        height: 240px;
+      }
+      @media (max-width: 1020px) {
+        .chart-box { height: 220px; }
+      }
     </style>
   </head>
 
@@ -518,6 +527,7 @@
         <div class="nav">
           <a href="#dashboard" id="navDashboard" class="active">Dashboard</a>
           <a href="#chargers" id="navChargers">Chargers</a>
+          <a href="#pricing" id="navPricing">Pricing</a>
           <small>Account</small>
           <a href="#signout" id="navSignout">Sign out</a>
         </div>
@@ -585,6 +595,36 @@
                 <div style="padding: 16px; color: var(--muted);" id="offlineList">No offline chargers</div>
               </div>
             </div>
+
+            <!-- Revenue charts panel -->
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Revenue</div>
+                  <div class="subtext">Last 30 days (ex VAT)</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnRevenueRefresh">Refresh revenue</button>
+                </div>
+              </div>
+
+              <div class="split">
+                <div>
+                  <div class="subtext" style="margin-bottom:8px;">Daily revenue</div>
+                  <div class="chart-box">
+                    <canvas id="revDailyChart"></canvas>
+                  </div>
+                </div>
+                <div>
+                  <div class="subtext" style="margin-bottom:8px;">Revenue by location</div>
+                  <div class="chart-box">
+                    <canvas id="revByLocationChart"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <div class="meta" id="revUpdated">Revenue updated: —</div>
+            </div>
           </section>
 
           <!-- CHARGERS VIEW -->
@@ -624,6 +664,70 @@
                     <tr><td colspan="5" style="color: var(--muted);">Loading…</td></tr>
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- PRICING VIEW -->
+          <section id="viewPricing" style="display:none;">
+            <div class="section-title">Pricing</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Global tariff</div>
+                  <div class="subtext">Set the base tariff (ex VAT). Drivers pay an additional 10% markup.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnPricingSave">Save</button>
+                </div>
+              </div>
+
+              <div style="padding: 16px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Base energy tariff (GBP/kWh, ex VAT)</div>
+                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px;">
+                      <input
+                        id="baseTariffInput"
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        placeholder="0.46"
+                        style="width: 240px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font-size: 18px; font-weight: 900;"
+                      />
+                      <div class="kbd">Markup: <span id="platformMarkupLabel">—</span></div>
+                    </div>
+                    <div class="subtext" style="margin-top:10px;">
+                      This is what the CPO earns per kWh (platform fee is added on top).
+                    </div>
+                  </div>
+
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Preview (ex VAT)</div>
+                    <div style="display:grid; gap:10px; margin-top:10px;">
+                      <div style="display:flex; justify-content:space-between; gap:10px;">
+                        <div class="subtext">Driver price / kWh</div>
+                        <div style="font-weight:950;" id="driverPriceLabel">—</div>
+                      </div>
+                      <div style="display:flex; justify-content:space-between; gap:10px;">
+                        <div class="subtext">CPO payout / kWh</div>
+                        <div style="font-weight:950;" id="payoutLabel">—</div>
+                      </div>
+                      <div style="display:flex; justify-content:space-between; gap:10px;">
+                        <div class="subtext">Platform fee / kWh</div>
+                        <div style="font-weight:950;" id="platformFeeLabel">—</div>
+                      </div>
+                    </div>
+                    <div class="subtext" style="margin-top:12px;">
+                      Values are computed from <code>/admin/pricing</code>.
+                    </div>
+                  </div>
+                </div>
+
+                <div class="meta" style="padding: 12px 0 0;">
+                  Tip: change the number and click <b>Save</b>.
+                </div>
               </div>
             </div>
           </section>
@@ -705,6 +809,9 @@
       </div>
     </div>
 
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
     <script>
       const API_BASE = 'http://localhost:3000';
       const POLL_MS = 3000;
@@ -718,9 +825,19 @@
 
         navDashboard: document.getElementById('navDashboard'),
         navChargers: document.getElementById('navChargers'),
+        navPricing: document.getElementById('navPricing'),
 
         viewDashboard: document.getElementById('viewDashboard'),
         viewChargers: document.getElementById('viewChargers'),
+        viewPricing: document.getElementById('viewPricing'),
+
+        // pricing
+        btnPricingSave: document.getElementById('btnPricingSave'),
+        baseTariffInput: document.getElementById('baseTariffInput'),
+        platformMarkupLabel: document.getElementById('platformMarkupLabel'),
+        driverPriceLabel: document.getElementById('driverPriceLabel'),
+        payoutLabel: document.getElementById('payoutLabel'),
+        platformFeeLabel: document.getElementById('platformFeeLabel'),
 
         globalSearch: document.getElementById('globalSearch'),
 
@@ -744,6 +861,12 @@
         btnEditCols: document.getElementById('btnEditCols'),
 
         toastWrap: document.getElementById('toastWrap'),
+
+        // revenue
+        btnRevenueRefresh: document.getElementById('btnRevenueRefresh'),
+        revDailyChart: document.getElementById('revDailyChart'),
+        revByLocationChart: document.getElementById('revByLocationChart'),
+        revUpdated: document.getElementById('revUpdated'),
 
         // modal
         messagesBackdrop: document.getElementById('messagesBackdrop'),
@@ -775,6 +898,18 @@
 
       let msgsPage = { take: 25, skip: 0, total: 0, items: [] };
       let selectedMsgId = null;
+
+      // pricing cache
+      let pricingCache = null;
+
+      // revenue cache
+      let revenueCache = null;
+      let revDailyChartInstance = null;
+      let revByLocationChartInstance = null;
+
+      // NEW: avoid spamming 404s if backend doesn't have /admin/revenue
+      let revenueEndpointAvailable = true;
+      let revenueWarnedMissing = false;
 
       // UI state
       let messagesPollTimer = null;
@@ -834,17 +969,41 @@
         return d.toLocaleString();
       }
 
+      function round4(n) {
+        const x = Number(n);
+        if (!Number.isFinite(x)) return 0;
+        return Math.round((x + Number.EPSILON) * 10000) / 10000;
+      }
+
+      function fmtMoneyPerKwh(n, currency = 'GBP') {
+        const x = Number(n);
+        if (!Number.isFinite(x)) return '—';
+        const sym = currency === 'GBP' ? '£' : `${currency} `;
+        return `${sym}${x.toFixed(4)}/kWh`;
+      }
+
+      function fmtMoney2(n, currency = 'GBP') {
+        const x = Number(n);
+        if (!Number.isFinite(x)) return '—';
+        const sym = currency === 'GBP' ? '£' : `${currency} `;
+        return `${sym}${x.toFixed(2)}`;
+      }
+
       function getViewFromHash() {
         const h = (location.hash || '#dashboard').replace('#', '').trim();
         if (h.startsWith('chargers')) return 'chargers';
+        if (h.startsWith('pricing')) return 'pricing';
         return 'dashboard';
       }
 
       function setActiveNav(view) {
         els.navDashboard.classList.toggle('active', view === 'dashboard');
         els.navChargers.classList.toggle('active', view === 'chargers');
+        els.navPricing.classList.toggle('active', view === 'pricing');
+
         els.viewDashboard.style.display = view === 'dashboard' ? '' : 'none';
         els.viewChargers.style.display = view === 'chargers' ? '' : 'none';
+        els.viewPricing.style.display = view === 'pricing' ? '' : 'none';
       }
 
       function statusToDotClass(status) {
@@ -941,10 +1100,143 @@
           : 'No offline chargers';
       }
 
-      async function fetchJson(url) {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      async function fetchJson(url, opts) {
+        const res = await fetch(url, opts);
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`${res.status} ${res.statusText}${text ? ` — ${text}` : ''}`);
+        }
         return res.json();
+      }
+
+      function destroyChart(ch) {
+        try { ch?.destroy?.(); } catch { /* ignore */ }
+      }
+
+      function renderRevenueCharts() {
+        if (!els.revDailyChart || !els.revByLocationChart) return;
+        if (!revenueCache) return;
+        if (typeof Chart === 'undefined') return;
+
+        const r = revenueCache;
+        const currency = r.currency || 'GBP';
+
+        const daily = Array.isArray(r.daily) ? r.daily : [];
+        const byLocation = Array.isArray(r.byLocation) ? r.byLocation : [];
+
+        const dailyLabels = daily.map(x => String(x.date ?? ''));
+        const dailyValues = daily.map(x => Number(x.revenue ?? 0));
+
+        destroyChart(revDailyChartInstance);
+        revDailyChartInstance = new Chart(els.revDailyChart, {
+          type: 'line',
+          data: {
+            labels: dailyLabels,
+            datasets: [{
+              label: 'Revenue',
+              data: dailyValues,
+              borderColor: '#2563eb',
+              backgroundColor: 'rgba(37, 99, 235, 0.12)',
+              fill: true,
+              tension: 0.25,
+              pointRadius: 2,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => ` ${fmtMoney2(ctx.parsed.y, currency)}`,
+                },
+              },
+            },
+            scales: {
+              y: {
+                ticks: { callback: (v) => fmtMoney2(v, currency) },
+                grid: { color: 'rgba(148, 163, 184, 0.22)' },
+              },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+
+        const top = byLocation
+          .map(x => ({ location: x.location ?? '—', revenue: Number(x.revenue ?? 0) }))
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 12);
+
+        const locLabels = top.map(x => x.location);
+        const locValues = top.map(x => x.revenue);
+
+        destroyChart(revByLocationChartInstance);
+        revByLocationChartInstance = new Chart(els.revByLocationChart, {
+          type: 'bar',
+          data: {
+            labels: locLabels,
+            datasets: [{
+              label: 'Revenue',
+              data: locValues,
+              backgroundColor: 'rgba(34, 197, 94, 0.75)',
+              borderColor: 'rgba(34, 197, 94, 1)',
+              borderWidth: 1,
+              borderRadius: 8,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => ` ${fmtMoney2(ctx.parsed.y, currency)}`,
+                },
+              },
+            },
+            scales: {
+              y: {
+                ticks: { callback: (v) => fmtMoney2(v, currency) },
+                grid: { color: 'rgba(148, 163, 184, 0.22)' },
+              },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+
+        if (els.revUpdated) {
+          els.revUpdated.textContent = `Revenue updated: ${new Date().toLocaleString()}`;
+        }
+      }
+
+      async function loadRevenue(range = '30d') {
+        if (!revenueEndpointAvailable) return;
+
+        try {
+          revenueCache = await fetchJson(`${API_BASE}/admin/revenue?range=${encodeURIComponent(range)}`);
+          renderRevenueCharts();
+        } catch (err) {
+          const msg = String(err?.message || err || '');
+          const is404 = msg.includes('404') || msg.toLowerCase().includes('not found');
+
+          if (is404) {
+            revenueEndpointAvailable = false;
+            if (!revenueWarnedMissing) {
+              revenueWarnedMissing = true;
+              toast(
+                'warn',
+                'Revenue charts',
+                'Backend endpoint missing: GET /admin/revenue. Charts are disabled until it is implemented.',
+                6000,
+              );
+            }
+            return;
+          }
+
+          throw err;
+        }
       }
 
       async function refreshOverviewAndChargers() {
@@ -963,6 +1255,75 @@
         renderDashboardLists();
 
         els.lastUpdated.textContent = `Last updated: ${new Date().toLocaleString()}`;
+
+        loadRevenue('30d').catch(err => toast('warn', 'Revenue charts', String(err?.message || err)));
+      }
+
+      function renderPricing() {
+        const p = pricingCache;
+        if (!p) {
+          els.platformMarkupLabel.textContent = '—';
+          els.driverPriceLabel.textContent = '—';
+          els.payoutLabel.textContent = '—';
+          els.platformFeeLabel.textContent = '—';
+          return;
+        }
+
+        const currency = p.currency || 'GBP';
+        const base = Number(p.baseEnergyGbpKwh);
+        const markup = Number(p.platformMarkup);
+
+        if (Number.isFinite(markup)) {
+          els.platformMarkupLabel.textContent = `${Math.round(markup * 100)}%`;
+        } else {
+          els.platformMarkupLabel.textContent = '—';
+        }
+
+        const driver = p.driverEnergyGbpKwhExVat ?? round4(base * (1 + markup));
+        const fee = p.platformFeeGbpKwhExVat ?? round4(base * markup);
+
+        els.driverPriceLabel.textContent = fmtMoneyPerKwh(driver, currency);
+        els.payoutLabel.textContent = fmtMoneyPerKwh(base, currency);
+        els.platformFeeLabel.textContent = fmtMoneyPerKwh(fee, currency);
+      }
+
+      async function loadPricing() {
+        const p = await fetchJson(`${API_BASE}/admin/pricing`);
+        pricingCache = p;
+        if (els.baseTariffInput) {
+          const base = Number(p?.baseEnergyGbpKwh);
+          if (Number.isFinite(base)) els.baseTariffInput.value = String(base);
+        }
+        renderPricing();
+      }
+
+      async function savePricing() {
+        const raw = els.baseTariffInput?.value;
+        const base = Number(raw);
+
+        if (!Number.isFinite(base) || base < 0) {
+          toast('warn', 'Invalid value', 'Base tariff must be a non-negative number.');
+          return;
+        }
+
+        const res = await fetchJson(`${API_BASE}/admin/pricing`, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ baseEnergyGbpKwh: base }),
+        });
+
+        if (res?.ok === false) {
+          toast('error', 'Save failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+
+        pricingCache = res?.pricing ?? pricingCache;
+        if (res?.pricing) pricingCache = res.pricing;
+        else if (res?.ok && res?.pricing) pricingCache = res.pricing;
+
+        await loadPricing();
+
+        toast('success', 'Saved', 'Pricing updated.');
       }
 
       function openMessagesModal(chargerId) {
@@ -1134,7 +1495,13 @@
       }
 
       // --- Events ---
-      window.addEventListener('hashchange', () => setActiveNav(getViewFromHash()));
+      window.addEventListener('hashchange', () => {
+        const view = getViewFromHash();
+        setActiveNav(view);
+        if (view === 'pricing') {
+          loadPricing().catch(err => toast('error', 'Pricing failed', String(err?.message || err)));
+        }
+      });
 
       els.globalSearch.addEventListener('input', () => {
         saveUiState();
@@ -1159,7 +1526,28 @@
         toast('info', 'Columns', 'This prototype uses fixed columns.');
       });
 
-      // Connectivity pill cycles All -> Online -> Offline -> All
+      els.btnPricingSave?.addEventListener('click', () => {
+        savePricing().catch(err => toast('error', 'Save failed', String(err?.message || err)));
+      });
+
+      // manual revenue refresh (also re-enables endpoint attempts)
+      els.btnRevenueRefresh?.addEventListener('click', () => {
+        revenueEndpointAvailable = true;
+        loadRevenue('30d').catch(err => toast('error', 'Revenue failed', String(err?.message || err)));
+      });
+
+      els.baseTariffInput?.addEventListener('input', () => {
+        const base = Number(els.baseTariffInput.value);
+        const markup = Number(pricingCache?.platformMarkup ?? 0.1);
+
+        const currency = pricingCache?.currency ?? 'GBP';
+        if (!Number.isFinite(base) || base < 0) return;
+
+        els.payoutLabel.textContent = fmtMoneyPerKwh(base, currency);
+        els.driverPriceLabel.textContent = fmtMoneyPerKwh(round4(base * (1 + markup)), currency);
+        els.platformFeeLabel.textContent = fmtMoneyPerKwh(round4(base * markup), currency);
+      });
+
       els.pillConnectivity.addEventListener('click', () => {
         connectivityFilter =
           connectivityFilter === 'all' ? 'online' :
@@ -1169,11 +1557,9 @@
         renderChargers();
       });
 
-      // Other pills (non-blocking messaging)
       els.pillChargerStatus.addEventListener('click', () => toast('info', 'Charger status', 'Not wired in this prototype.'));
       els.pillFirmware.addEventListener('click', () => toast('info', 'Firmware', 'Not wired in this prototype.'));
 
-      // open modal using "Connector status" pill
       els.pillConnectorStatus.addEventListener('click', () => {
         if (!selectedCharger) {
           const first = chargersCache.find(matchesGlobalSearch);
@@ -1184,7 +1570,6 @@
         openMessagesModal(selectedCharger);
       });
 
-      // row click to open message log modal
       els.chargersTbody.addEventListener('click', (e) => {
         const tr = e.target.closest('tr[data-charger]');
         if (!tr) return;
@@ -1194,13 +1579,11 @@
         openMessagesModal(chargerId);
       });
 
-      // modal close
       els.messagesClose.addEventListener('click', closeMessagesModal);
       els.messagesBackdrop.addEventListener('click', (e) => {
         if (e.target === els.messagesBackdrop) closeMessagesModal();
       });
 
-      // ops checklist change
       els.opsChecklist.addEventListener('change', (e) => {
         const cb = e.target.closest('input[type="checkbox"][data-op]');
         if (!cb) return;
@@ -1235,7 +1618,6 @@
         loadMessages().catch(err => toast('error', 'Messages failed', String(err?.message || err)));
       });
 
-      // click message row to show JSON
       els.messagesTbody.addEventListener('click', (e) => {
         const el = e.target.closest('[data-msgid]');
         if (!el) return;
@@ -1247,7 +1629,6 @@
       els.btnCopyMsg.addEventListener('click', () => copyText(els.msgJson.textContent || ''));
       els.btnCopyRes.addEventListener('click', () => copyText(els.resJson.textContent || ''));
 
-      // ESC closes modal
       window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && els.messagesBackdrop.style.display === 'flex') {
           closeMessagesModal();
@@ -1257,19 +1638,26 @@
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) stopOverviewPoll();
         else {
-          refreshOverviewAndChargers().catch(() => {});
-          startOverviewPoll();
+          const view = getViewFromHash();
+          if (view === 'dashboard' || view === 'chargers') {
+            refreshOverviewAndChargers().catch(() => {});
+            startOverviewPoll();
+          }
         }
       });
 
-      // --- Initial load ---
       loadUiState();
       setActiveNav(getViewFromHash());
 
       async function boot() {
         try {
-          await refreshOverviewAndChargers();
-          startOverviewPoll();
+          const view = getViewFromHash();
+          if (view === 'pricing') {
+            await loadPricing();
+          } else {
+            await refreshOverviewAndChargers();
+            startOverviewPoll();
+          }
         } catch (e) {
           toast('error', 'Boot failed', String(e?.message || e), 5000);
           startOverviewPoll();

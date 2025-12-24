@@ -6,6 +6,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class AdminController {
   constructor(private readonly prisma: PrismaService) {}
 
+  // quick probe route to confirm AdminController is mounted
+  @Get('ping')
+  ping() {
+    return { ok: true, scope: 'admin', at: new Date().toISOString() };
+  }
+
   @Get('chargers')
   async getChargers() {
     return this.prisma.charger.findMany({
@@ -92,7 +98,8 @@ export class AdminController {
       return { ok: false, error: 'baseEnergyGbpKwh must be a non-negative number' };
     }
 
-    const markupRaw = body.platformMarkup === undefined ? 0.1 : Number(body.platformMarkup);
+    const markupRaw =
+      body.platformMarkup === undefined ? 0.1 : Number(body.platformMarkup);
     if (!Number.isFinite(markupRaw) || markupRaw < 0 || markupRaw > 1) {
       return { ok: false, error: 'platformMarkup must be between 0 and 1 (e.g. 0.10)' };
     }
@@ -121,7 +128,6 @@ export class AdminController {
     const driverEnergyGbpKwhExVat = round4(base * (1 + markup));
     const platformFeeGbpKwhExVat = round4(base * markup);
 
-    // Keep response shape consistent with GET /admin/pricing (return the object directly)
     return {
       id: updated.id,
       currency: updated.currency,
@@ -166,7 +172,7 @@ export class AdminController {
 
   /**
    * UI-friendly charger list for a "Manage chargers" table.
-   * Now uses real connector statuses from ConnectorStatus (StatusNotification).
+   * Uses connector statuses from ConnectorStatus (StatusNotification).
    */
   @Get('chargers-view')
   async getChargersView(@Query('onlineWindowSeconds') onlineWindowSeconds?: string) {
@@ -197,7 +203,7 @@ export class AdminController {
       return {
         id: c.id,
         chargerId: c.chargerId,
-        name: c.chargerId, // replace when you add displayName to schema
+        name: c.chargerId,
         location: c.site?.name ?? null,
 
         connectivity: isOnline ? 'Online' : 'Offline',
@@ -221,6 +227,167 @@ export class AdminController {
               ],
       };
     });
+  }
+
+  /**
+   * Revenue analytics for admin dashboard charts.
+   * GET /admin/revenue?range=30d&meterUnit=wh
+   *
+   * Notes:
+   * - "Revenue" here is platform fee revenue (ex VAT), derived from transactions + PricingConfig.
+   * - meterUnit:
+   *    - wh  => kWh = (meterStop - meterStart) / 1000
+   *    - kwh => kWh = (meterStop - meterStart) / 1
+   */
+  @Get('revenue')
+  async getRevenue(
+    @Query('range') range?: string,
+    @Query('meterUnit') meterUnit?: string,
+  ) {
+    const days = parseRangeDays(range ?? '30d');
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const cfg =
+      (await this.prisma.pricingConfig.findFirst({ orderBy: { id: 'asc' } })) ??
+      (await this.prisma.pricingConfig.create({
+        data: {
+          baseEnergyGbpKwh: new Prisma.Decimal('0.46'),
+          platformMarkup: new Prisma.Decimal('0.10'),
+          currency: 'GBP',
+        },
+      }));
+
+    const base = cfg.baseEnergyGbpKwh.toNumber();
+    const markup = cfg.platformMarkup.toNumber();
+
+    const platformFeePerKwhExVat = round4(base * markup);
+
+    const unit = (meterUnit ?? 'wh').trim().toLowerCase() === 'kwh' ? 'kwh' : 'wh';
+    const divisor = unit === 'kwh' ? 1 : 1000;
+
+    const txs = await this.prisma.transaction.findMany({
+      where: {
+        startedAt: { gte: since },
+        meterStop: { not: null },
+      },
+      select: {
+        meterStart: true,
+        meterStop: true,
+        startedAt: true,
+        charger: {
+          select: {
+            chargerId: true,
+            site: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { startedAt: 'asc' },
+    });
+
+    const dailyMap = new Map<string, number>();
+    const locMap = new Map<string, number>();
+
+    for (const t of txs) {
+      const ms = Number(t.meterStart);
+      const me = Number(t.meterStop);
+      if (!Number.isFinite(ms) || !Number.isFinite(me)) continue;
+
+      const kwh = (me - ms) / divisor;
+      if (!Number.isFinite(kwh) || kwh <= 0) continue;
+
+      const revenue = kwh * platformFeePerKwhExVat; // no rounding while aggregating
+
+      const day = toYmd(t.startedAt);
+      dailyMap.set(day, (dailyMap.get(day) ?? 0) + revenue);
+
+      const loc = t.charger?.site?.name ?? 'Unknown';
+      locMap.set(loc, (locMap.get(loc) ?? 0) + revenue);
+    }
+
+    const daily: Array<{ date: string; revenue: number }> = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      const key = toYmd(d);
+
+      daily.push({ date: key, revenue: round4(dailyMap.get(key) ?? 0) });
+    }
+
+    const byLocation = [...locMap.entries()]
+      .map(([location, revenue]) => ({ location, revenue: round4(revenue) }))
+      .sort((a, b) => b.revenue - a.revenue);
+
+    return {
+      currency: cfg.currency ?? 'GBP',
+      daily,
+      byLocation,
+      meta: {
+        range: `${days}d`,
+        since,
+        platformFeePerKwhExVat,
+        meterUnit: unit,
+        generatedAt: new Date(),
+      },
+    };
+  }
+
+  // Debug endpoint to explain why revenue is 0
+  @Get('revenue/debug')
+  async getRevenueDebug(
+    @Query('range') range?: string,
+    @Query('meterUnit') meterUnit?: string,
+  ) {
+    const days = parseRangeDays(range ?? '30d');
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const unit = (meterUnit ?? 'wh').trim().toLowerCase() === 'kwh' ? 'kwh' : 'wh';
+    const divisor = unit === 'kwh' ? 1 : 1000;
+
+    const totalInRange = await this.prisma.transaction.count({
+      where: { startedAt: { gte: since } },
+    });
+
+    const withMeterStop = await this.prisma.transaction.count({
+      where: { startedAt: { gte: since }, meterStop: { not: null } },
+    });
+
+    const sample = await this.prisma.transaction.findMany({
+      where: { startedAt: { gte: since } },
+      orderBy: { startedAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        chargerId: true,
+        startedAt: true,
+        stoppedAt: true,
+        meterStart: true,
+        meterStop: true,
+      },
+    });
+
+    return {
+      since,
+      meterUnit: unit,
+      divisor,
+      counts: { totalInRange, withMeterStop },
+      sample: sample.map(t => {
+        const ms = Number(t.meterStart);
+        const me = t.meterStop === null ? null : Number(t.meterStop);
+        const delta = me === null ? null : me - ms;
+        const kwh = delta === null ? null : delta / divisor;
+        return {
+          id: t.id,
+          chargerId: t.chargerId,
+          startedAt: t.startedAt,
+          stoppedAt: t.stoppedAt,
+          meterStart: ms,
+          meterStop: me,
+          delta,
+          kwh,
+        };
+      }),
+    };
   }
 
   /**
@@ -261,7 +428,10 @@ export class AdminController {
 
     const ops =
       operation && operation.trim().length
-        ? operation.split(',').map(s => s.trim()).filter(Boolean)
+        ? operation
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean)
         : [];
 
     const where = {
@@ -294,4 +464,20 @@ export class AdminController {
 
 function round4(n: number) {
   return Math.round((n + Number.EPSILON) * 10_000) / 10_000;
+}
+
+function toYmd(d: Date) {
+  const x = new Date(d);
+  const yyyy = x.getFullYear();
+  const mm = String(x.getMonth() + 1).padStart(2, '0');
+  const dd = String(x.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function parseRangeDays(range: string) {
+  const r = String(range || '').trim().toLowerCase();
+  const m = r.match(/^(\d+)\s*d$/);
+  const n = m ? Number(m[1]) : 30;
+  if (!Number.isFinite(n)) return 30;
+  return Math.min(Math.max(n, 1), 365);
 }
