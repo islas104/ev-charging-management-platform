@@ -26,7 +26,6 @@ model Charger {
 
   transactions Transaction[]
 
-  // NEW
   connectors   ConnectorStatus[]
   ocppMessages OcppMessageLog[]
 
@@ -97,4 +96,16 @@ model AdminUser {
   email        String   @unique
   passwordHash String
   createdAt    DateTime @default(now())
+}
+
+// Global pricing configuration (single row used by the platform)
+// - baseEnergyGbpKwh: what the CPO earns per kWh (ex VAT)
+// - platformMarkup: % markup added on top so driver pays more (0.10 = 10%)
+model PricingConfig {
+  id              Int      @id @default(autoincrement())
+  baseEnergyGbpKwh Decimal  @db.Decimal(10, 4)
+  platformMarkup  Decimal  @db.Decimal(5, 4)
+  currency        String   @default("GBP")
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
 }

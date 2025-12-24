@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Controller('admin')
@@ -35,6 +36,102 @@ export class AdminController {
       stoppedAt: t.stoppedAt,
       stopReason: t.stopReason,
     }));
+  }
+
+  /**
+   * Global pricing config (single row):
+   * - baseEnergyGbpKwh: ex VAT base tariff (CPO payout)
+   * - platformMarkup: markup added on top so driver pays more (0.10 = 10%)
+   */
+  @Get('pricing')
+  async getPricing() {
+    const cfg =
+      (await this.prisma.pricingConfig.findFirst({ orderBy: { id: 'asc' } })) ??
+      (await this.prisma.pricingConfig.create({
+        data: {
+          baseEnergyGbpKwh: new Prisma.Decimal('0.46'),
+          platformMarkup: new Prisma.Decimal('0.10'),
+          currency: 'GBP',
+        },
+      }));
+
+    const base = cfg.baseEnergyGbpKwh.toNumber();
+    const markup = cfg.platformMarkup.toNumber();
+
+    const driverEnergyGbpKwhExVat = round4(base * (1 + markup));
+    const platformFeeGbpKwhExVat = round4(base * markup);
+
+    return {
+      id: cfg.id,
+      currency: cfg.currency,
+      baseEnergyGbpKwh: base,
+      platformMarkup: markup,
+      driverEnergyGbpKwhExVat,
+      platformFeeGbpKwhExVat,
+      updatedAt: cfg.updatedAt,
+      createdAt: cfg.createdAt,
+    };
+  }
+
+  /**
+   * Update global pricing settings.
+   * Note:
+   * - UI currently only edits baseEnergyGbpKwh
+   * - platformMarkup defaults to 10% if not provided
+   */
+  @Put('pricing')
+  async updatePricing(
+    @Body()
+    body: {
+      baseEnergyGbpKwh: number;
+      platformMarkup?: number;
+    },
+  ) {
+    const baseEnergy = Number(body.baseEnergyGbpKwh);
+    if (!Number.isFinite(baseEnergy) || baseEnergy < 0) {
+      return { ok: false, error: 'baseEnergyGbpKwh must be a non-negative number' };
+    }
+
+    const markupRaw = body.platformMarkup === undefined ? 0.1 : Number(body.platformMarkup);
+    if (!Number.isFinite(markupRaw) || markupRaw < 0 || markupRaw > 1) {
+      return { ok: false, error: 'platformMarkup must be between 0 and 1 (e.g. 0.10)' };
+    }
+
+    const cfg =
+      (await this.prisma.pricingConfig.findFirst({ orderBy: { id: 'asc' } })) ??
+      (await this.prisma.pricingConfig.create({
+        data: {
+          baseEnergyGbpKwh: new Prisma.Decimal('0.46'),
+          platformMarkup: new Prisma.Decimal('0.10'),
+          currency: 'GBP',
+        },
+      }));
+
+    const updated = await this.prisma.pricingConfig.update({
+      where: { id: cfg.id },
+      data: {
+        baseEnergyGbpKwh: new Prisma.Decimal(baseEnergy),
+        platformMarkup: new Prisma.Decimal(markupRaw),
+      },
+    });
+
+    const base = updated.baseEnergyGbpKwh.toNumber();
+    const markup = updated.platformMarkup.toNumber();
+
+    const driverEnergyGbpKwhExVat = round4(base * (1 + markup));
+    const platformFeeGbpKwhExVat = round4(base * markup);
+
+    // Keep response shape consistent with GET /admin/pricing (return the object directly)
+    return {
+      id: updated.id,
+      currency: updated.currency,
+      baseEnergyGbpKwh: base,
+      platformMarkup: markup,
+      driverEnergyGbpKwhExVat,
+      platformFeeGbpKwhExVat,
+      updatedAt: updated.updatedAt,
+      createdAt: updated.createdAt,
+    };
   }
 
   /**
@@ -108,7 +205,6 @@ export class AdminController {
 
         registrationStatus: c.registered ? 'Registered' : 'Unregistered',
 
-        // Use persisted connector status; fallback to Unknown if we have none yet.
         connectors:
           c.connectors?.length
             ? c.connectors.map(cs => ({
@@ -120,8 +216,8 @@ export class AdminController {
                 updatedAt: cs.updatedAt,
               }))
             : [
-                { connectorId: 1, status: isOnline ? 'Unknown' : 'Unknown' },
-                { connectorId: 2, status: isOnline ? 'Unknown' : 'Unknown' },
+                { connectorId: 1, status: 'Unknown' },
+                { connectorId: 2, status: 'Unknown' },
               ],
       };
     });
@@ -194,4 +290,8 @@ export class AdminController {
 
     return { total, items };
   }
+}
+
+function round4(n: number) {
+  return Math.round((n + Number.EPSILON) * 10_000) / 10_000;
 }
