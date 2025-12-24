@@ -3,117 +3,213 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Cloud Tunnel — Charger management (Demo)</title>
+    <title>Cloud Tunnel — Admin</title>
+
     <style>
       :root {
-        --bg: #f6f7fb;
-        --card: #ffffff;
-        --text: #0f172a;
-        --muted: #64748b;
-        --border: #e2e8f0;
-        --primary: #2563eb;
+        /* Brand / theme */
+        --bg0: #070a12;
+        --bg1: #0b1020;
+        --card: rgba(255, 255, 255, 0.06);
+        --card2: rgba(255, 255, 255, 0.04);
+        --border: rgba(148, 163, 184, 0.18);
+        --text: #e5e7eb;
+        --muted: rgba(226, 232, 240, 0.65);
 
-        --online: #16a34a;
-        --offline: #64748b;
+        --primary: #7c3aed;
+        --primary2: #22d3ee;
 
-        --blue: #2563eb;
-        --red: #ef4444;
-        --amber: #f59e0b;
-        --green: #16a34a;
-        --slate: #94a3b8;
+        --good: #22c55e;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+        --idle: rgba(226, 232, 240, 0.45);
 
-        --radius: 14px;
+        --radius: 18px;
+        --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
       }
 
       * { box-sizing: border-box; }
+      html, body { height: 100%; }
       body {
         margin: 0;
         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-        background: var(--bg);
+        background:
+          radial-gradient(1200px 600px at 15% 8%, rgba(124, 58, 237, 0.22), transparent 60%),
+          radial-gradient(900px 500px at 88% 14%, rgba(34, 211, 238, 0.18), transparent 60%),
+          linear-gradient(180deg, var(--bg0), var(--bg1));
         color: var(--text);
       }
+
+      a { color: inherit; }
 
       /* --- App shell --- */
       .shell {
         display: grid;
-        grid-template-columns: 260px 1fr;
+        grid-template-columns: 280px 1fr;
         min-height: 100vh;
       }
 
+      /* --- Sidebar --- */
       aside {
-        background: #fff;
-        border-right: 1px solid var(--border);
-        padding: 16px 14px;
+        padding: 18px 16px;
         position: sticky;
         top: 0;
         height: 100vh;
+        border-right: 1px solid rgba(148, 163, 184, 0.12);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+          rgba(5, 7, 14, 0.5);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
       }
 
       .side-brand {
         display: flex;
         align-items: center;
         gap: 12px;
-        font-weight: 900;
-        letter-spacing: -0.2px;
-        padding: 6px 8px 14px;
-        border-bottom: 1px solid var(--border);
-        margin-bottom: 14px;
+        padding: 10px 10px 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(255, 255, 255, 0.04);
       }
 
       .brand-logo {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
         object-fit: cover;
-        border: 1px solid var(--border);
-        background: #fff;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.06);
         display: block;
       }
 
+      .brand-name {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.05;
+      }
+
+      .brand-name strong {
+        font-weight: 950;
+        letter-spacing: -0.3px;
+      }
+      .brand-name span {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
       .nav {
+        margin-top: 14px;
         display: grid;
-        gap: 6px;
-        padding: 6px;
+        gap: 8px;
+      }
+
+      .nav small {
+        color: rgba(226, 232, 240, 0.55);
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 11px;
+        margin: 10px 10px 2px;
+        display: block;
       }
 
       .nav a {
         text-decoration: none;
-        color: var(--text);
         display: flex;
-        gap: 10px;
         align-items: center;
-        padding: 10px 12px;
-        border-radius: 12px;
-        font-weight: 700;
+        justify-content: space-between;
+        padding: 12px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.10);
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 850;
+        color: rgba(226, 232, 240, 0.85);
+        transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+      }
+      .nav a:hover {
+        transform: translateY(-1px);
+        background: rgba(255, 255, 255, 0.045);
+        border-color: rgba(148, 163, 184, 0.18);
       }
 
       .nav a.active {
-        background: #eef2ff;
-        color: #1d4ed8;
+        background:
+          linear-gradient(135deg, rgba(124, 58, 237, 0.28), rgba(34, 211, 238, 0.16));
+        border-color: rgba(124, 58, 237, 0.38);
+        color: #fff;
+        box-shadow: 0 18px 60px rgba(124, 58, 237, 0.18);
       }
 
-      .nav small {
-        color: var(--muted);
-        font-weight: 700;
-        margin: 12px 6px 6px;
-        display: block;
+      .nav .left {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
       }
 
+      .nav .icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: rgba(226, 232, 240, 0.9);
+        font-weight: 950;
+      }
+
+      .nav .badge {
+        font-size: 11px;
+        font-weight: 950;
+        color: rgba(226, 232, 240, 0.85);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 6px 10px;
+        border-radius: 999px;
+      }
+
+      .side-meta {
+        margin-top: 14px;
+        padding: 12px 12px;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(255, 255, 255, 0.03);
+        color: rgba(226, 232, 240, 0.75);
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .side-meta code {
+        color: #fff;
+        font-weight: 900;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        padding: 2px 6px;
+        border-radius: 8px;
+      }
+
+      /* --- Header --- */
       header {
-        background: #fff;
-        border-bottom: 1px solid var(--border);
-        padding: 14px 18px;
+        position: sticky;
+        top: 0;
+        z-index: 20;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 14px;
-        position: sticky;
-        top: 0;
-        z-index: 20;
+        padding: 14px 18px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(7, 10, 18, 0.50);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
       }
 
       main {
-        max-width: 1200px;
+        max-width: 1220px;
         margin: 0 auto;
         padding: 18px;
       }
@@ -127,30 +223,71 @@
 
       .kbd {
         font-size: 12px;
-        color: var(--muted);
-        border: 1px solid var(--border);
-        background: #fff;
-        border-radius: 10px;
-        padding: 6px 8px;
+        color: rgba(226, 232, 240, 0.62);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 999px;
+        padding: 7px 10px;
+        font-weight: 800;
       }
 
       .top-search {
         display: flex;
         align-items: center;
         gap: 10px;
-        background: #fff;
-        border: 1px solid var(--border);
         border-radius: 999px;
-        padding: 10px 12px;
-        min-width: 420px;
-        outline: none;
+        padding: 11px 12px;
+        min-width: 440px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.04);
+        box-shadow: 0 16px 50px rgba(0, 0, 0, 0.25);
       }
       .top-search input {
         border: 0;
         outline: none;
         width: 100%;
         font-size: 14px;
+        background: transparent;
+        color: rgba(226, 232, 240, 0.92);
       }
+      .top-search input::placeholder { color: rgba(226, 232, 240, 0.55); }
+
+      /* --- Buttons --- */
+      .btn {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.95), rgba(34, 211, 238, 0.6));
+        color: #061019;
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-weight: 950;
+        cursor: pointer;
+        transition: transform 120ms ease, filter 120ms ease;
+        box-shadow: 0 16px 50px rgba(124, 58, 237, 0.16);
+      }
+      .btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+      .btn:active { transform: translateY(0); }
+
+      .btn.secondary {
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(226, 232, 240, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: none;
+      }
+
+      .btn.icon {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      /* --- Section titles --- */
+      .section-title {
+        margin-top: 18px;
+        font-size: 30px;
+        font-weight: 980;
+        letter-spacing: -0.6px;
+      }
+      .subtext { color: var(--muted); font-size: 12px; margin-top: 6px; }
 
       /* --- Cards / panels --- */
       .cards {
@@ -160,22 +297,45 @@
         gap: 14px;
       }
 
-      .card {
-        background: var(--card);
-        border: 1px solid var(--border);
+      .card, .panel {
         border-radius: var(--radius);
-        padding: 16px;
-        min-height: 92px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
       }
+
+      .card {
+        padding: 16px;
+        min-height: 96px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: -1px;
+        border-radius: inherit;
+        background:
+          radial-gradient(600px 220px at 15% 0%, rgba(124, 58, 237, 0.18), transparent 60%),
+          radial-gradient(540px 230px at 85% 0%, rgba(34, 211, 238, 0.12), transparent 60%);
+        pointer-events: none;
+      }
+
+      .card > * { position: relative; z-index: 1; }
+
       .card .label {
-        color: var(--muted);
-        font-size: 13px;
-        font-weight: 700;
+        color: rgba(226, 232, 240, 0.70);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
       }
       .card .value {
         margin-top: 8px;
         font-size: 44px;
-        font-weight: 900;
+        font-weight: 980;
         letter-spacing: -1px;
       }
 
@@ -186,28 +346,22 @@
         gap: 14px;
       }
 
-      .panel {
-        margin-top: 16px;
-        background: #fff;
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-      }
+      .panel { margin-top: 16px; overflow: hidden; }
 
       .panel-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 14px 16px;
-        border-bottom: 1px solid var(--border);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
         gap: 12px;
         flex-wrap: wrap;
       }
       .panel-title {
-        font-size: 18px;
-        font-weight: 900;
+        font-size: 16px;
+        font-weight: 980;
+        letter-spacing: -0.2px;
       }
-      .subtext { color: var(--muted); font-size: 12px; margin-top: 4px; }
 
       /* filter pills */
       .filter-pills {
@@ -222,60 +376,43 @@
         gap: 10px;
         padding: 10px 12px;
         border-radius: 999px;
-        border: 1px solid var(--border);
-        background: #f8fafc;
-        font-weight: 800;
-        color: #334155;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 900;
+        color: rgba(226, 232, 240, 0.86);
         cursor: pointer;
         user-select: none;
+        transition: transform 120ms ease, border-color 120ms ease;
       }
+      .filter-pill:hover { transform: translateY(-1px); border-color: rgba(148, 163, 184, 0.26); }
       .filter-pill .caret {
-        color: var(--muted);
-        font-weight: 900;
+        color: rgba(226, 232, 240, 0.55);
+        font-weight: 950;
       }
       .filter-pill.active {
-        background: #eef2ff;
-        border-color: #c7d2fe;
-        color: #1d4ed8;
-      }
-
-      .btn {
-        border: 0;
-        background: var(--primary);
+        background: rgba(124, 58, 237, 0.18);
+        border-color: rgba(124, 58, 237, 0.38);
         color: #fff;
-        padding: 10px 14px;
-        border-radius: 999px;
-        font-weight: 800;
-        cursor: pointer;
-      }
-      .btn.secondary {
-        background: #fff;
-        color: var(--text);
-        border: 1px solid var(--border);
-      }
-      .btn.icon {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
       }
 
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
+      /* --- Table --- */
+      table { width: 100%; border-collapse: collapse; }
       th, td {
         padding: 12px 16px;
-        border-bottom: 1px solid var(--border);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.10);
         text-align: left;
         font-size: 14px;
         vertical-align: middle;
       }
       th {
-        color: var(--muted);
-        font-weight: 800;
-        background: #fbfcfe;
+        color: rgba(226, 232, 240, 0.65);
+        font-weight: 900;
+        background: rgba(255, 255, 255, 0.02);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 12px;
       }
-      tr:hover td { background: #fafcff; }
+      tr:hover td { background: rgba(255, 255, 255, 0.03); }
 
       .pill {
         display: inline-flex;
@@ -283,93 +420,89 @@
         gap: 8px;
         padding: 6px 10px;
         border-radius: 999px;
-        border: 1px solid var(--border);
+        border: 1px solid rgba(148, 163, 184, 0.18);
         font-size: 13px;
-        background: #fff;
-        font-weight: 800;
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 900;
+        color: rgba(226, 232, 240, 0.88);
       }
       .dot {
         width: 8px;
         height: 8px;
         border-radius: 999px;
-        background: var(--offline);
+        background: var(--idle);
       }
-      .pill.online .dot { background: var(--online); }
-      .pill.offline .dot { background: var(--offline); }
+      .pill.online .dot { background: var(--good); }
+      .pill.offline .dot { background: rgba(226, 232, 240, 0.50); }
 
       .connectors {
         display: inline-flex;
         gap: 12px;
         align-items: center;
         flex-wrap: wrap;
-        color: var(--muted);
+        color: rgba(226, 232, 240, 0.70);
         font-size: 13px;
-        font-weight: 800;
+        font-weight: 900;
       }
       .connector-dot {
         width: 10px;
         height: 10px;
         border-radius: 999px;
-        background: var(--slate);
+        background: rgba(226, 232, 240, 0.35);
         display: inline-block;
         margin-left: 6px;
       }
-      .connector-dot.green { background: var(--green); }
-      .connector-dot.blue { background: var(--blue); }
-      .connector-dot.red { background: var(--red); }
-      .connector-dot.amber { background: var(--amber); }
+      .connector-dot.green { background: var(--good); }
+      .connector-dot.blue { background: #60a5fa; }
+      .connector-dot.red { background: var(--bad); }
+      .connector-dot.amber { background: var(--warn); }
 
       .meta {
-        color: var(--muted);
+        color: rgba(226, 232, 240, 0.60);
         font-size: 12px;
         padding: 10px 16px;
       }
 
-      .section-title {
-        margin-top: 22px;
-        font-size: 28px;
-        font-weight: 950;
-        letter-spacing: -0.6px;
-      }
-
-      /* --- Drawer/modal for OCPP filter + message viewer --- */
+      /* --- Modal --- */
       .backdrop {
         position: fixed;
         inset: 0;
-        background: rgba(15, 23, 42, 0.35);
+        background: rgba(2, 6, 23, 0.62);
         display: none;
         align-items: flex-start;
         justify-content: center;
         padding: 60px 18px;
         z-index: 50;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
       }
       .modal {
         width: min(1100px, 100%);
-        background: #fff;
-        border-radius: 16px;
-        border: 1px solid var(--border);
+        background: rgba(7, 10, 18, 0.85);
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
         overflow: hidden;
-        box-shadow: 0 30px 90px rgba(2, 6, 23, 0.28);
+        box-shadow: var(--shadow);
       }
       .modal-header {
         padding: 14px 16px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-bottom: 1px solid var(--border);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
       }
       .modal-title {
-        font-weight: 950;
+        font-weight: 980;
         font-size: 16px;
       }
       .modal-close {
-        border: 0;
-        background: #fff;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255, 255, 255, 0.03);
+        color: rgba(226, 232, 240, 0.92);
         font-size: 20px;
         cursor: pointer;
         padding: 6px 10px;
-        border-radius: 10px;
-        border: 1px solid var(--border);
+        border-radius: 12px;
       }
       .modal-body {
         display: grid;
@@ -377,9 +510,9 @@
         min-height: 420px;
       }
       .modal-side {
-        border-right: 1px solid var(--border);
+        border-right: 1px solid rgba(148, 163, 184, 0.10);
         padding: 14px 14px;
-        background: #fbfcfe;
+        background: rgba(255, 255, 255, 0.03);
       }
       .checklist {
         display: grid;
@@ -390,28 +523,29 @@
         display: flex;
         gap: 10px;
         align-items: center;
-        font-weight: 800;
-        color: #334155;
+        font-weight: 900;
+        color: rgba(226, 232, 240, 0.88);
       }
       .checklist input[type="checkbox"] {
         width: 18px;
         height: 18px;
       }
-      .modal-main {
-        padding: 0;
-      }
+      .modal-main { padding: 0; }
       .modal-main table th, .modal-main table td { padding: 10px 12px; }
+
       .jsonbox {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
         font-size: 12px;
-        background: #0b1220;
+        background: rgba(2, 6, 23, 0.85);
         color: #dbeafe;
         padding: 12px;
-        border-radius: 12px;
+        border-radius: 14px;
         overflow: auto;
         max-height: 320px;
         white-space: pre;
+        border: 1px solid rgba(148, 163, 184, 0.12);
       }
+
       .split {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -420,22 +554,10 @@
       }
 
       .link {
-        color: #1d4ed8;
+        color: rgba(147, 197, 253, 0.95);
         cursor: pointer;
         text-decoration: none;
-        font-weight: 900;
-      }
-
-      @media (max-width: 1020px) {
-        .shell { grid-template-columns: 1fr; }
-        aside { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
-        .top-search { min-width: 260px; width: 100%; }
-        .cards { grid-template-columns: 1fr; }
-        .cards-2 { grid-template-columns: 1fr; }
-        .modal-body { grid-template-columns: 1fr; }
-        .modal-side { border-right: 0; border-bottom: 1px solid var(--border); }
-        th:nth-child(3), td:nth-child(3) { display: none; }
-        .split { grid-template-columns: 1fr; }
+        font-weight: 950;
       }
 
       /* --- Toasts --- */
@@ -452,12 +574,12 @@
 
       .toast {
         pointer-events: auto;
-        background: #0b1220;
-        color: #e2e8f0;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        border-radius: 14px;
+        background: rgba(2, 6, 23, 0.88);
+        color: rgba(226, 232, 240, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 16px;
         padding: 12px 12px;
-        box-shadow: 0 18px 50px rgba(2, 6, 23, 0.32);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.40);
         display: grid;
         gap: 8px;
         animation: toastIn 160ms ease-out;
@@ -471,23 +593,23 @@
       }
 
       .toast-title {
-        font-weight: 950;
+        font-weight: 980;
         letter-spacing: -0.2px;
         font-size: 13px;
       }
 
       .toast-msg {
-        color: #cbd5e1;
+        color: rgba(226, 232, 240, 0.72);
         font-size: 13px;
         line-height: 1.35;
         word-break: break-word;
       }
 
       .toast .x {
-        border: 1px solid rgba(148, 163, 184, 0.28);
-        background: transparent;
-        color: #e2e8f0;
-        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255, 255, 255, 0.03);
+        color: rgba(226, 232, 240, 0.92);
+        border-radius: 12px;
         padding: 4px 8px;
         cursor: pointer;
       }
@@ -498,16 +620,24 @@
       .toast.error { border-left: 4px solid #ef4444; }
 
       @keyframes toastIn {
-        from { transform: translateY(6px); opacity: 0; }
+        from { transform: translateY(8px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
 
       /* chart sizing */
-      .chart-box {
-        position: relative;
-        height: 240px;
-      }
+      .chart-box { position: relative; height: 240px; }
+
+      /* Responsive */
       @media (max-width: 1020px) {
+        .shell { grid-template-columns: 1fr; }
+        aside { position: relative; height: auto; border-right: 0; border-bottom: 1px solid rgba(148, 163, 184, 0.12); }
+        .top-search { min-width: 260px; width: 100%; }
+        .cards { grid-template-columns: 1fr; }
+        .cards-2 { grid-template-columns: 1fr; }
+        .modal-body { grid-template-columns: 1fr; }
+        .modal-side { border-right: 0; border-bottom: 1px solid rgba(148, 163, 184, 0.12); }
+        th:nth-child(3), td:nth-child(3) { display: none; }
+        .split { grid-template-columns: 1fr; }
         .chart-box { height: 220px; }
       }
     </style>
@@ -518,21 +648,34 @@
       <aside>
         <div class="side-brand">
           <img class="brand-logo" src="./assets/cloud-tunnel.png" alt="Cloud Tunnel" />
-          <div>
-            <div>Cloud Tunnel</div>
-            <div class="subtext" style="margin-top:2px">Admin</div>
+          <div class="brand-name">
+            <strong>Cloud Tunnel</strong>
+            <span>Admin Console</span>
           </div>
         </div>
 
         <div class="nav">
-          <a href="#dashboard" id="navDashboard" class="active">Dashboard</a>
-          <a href="#chargers" id="navChargers">Chargers</a>
-          <a href="#pricing" id="navPricing">Pricing</a>
+          <a href="#dashboard" id="navDashboard" class="active">
+            <span class="left"><span class="icon">D</span>Dashboard</span>
+            <span class="badge">Live</span>
+          </a>
+          <a href="#chargers" id="navChargers">
+            <span class="left"><span class="icon">C</span>Chargers</span>
+            <span class="badge">Fleet</span>
+          </a>
+          <a href="#pricing" id="navPricing">
+            <span class="left"><span class="icon">£</span>Pricing</span>
+            <span class="badge">Global</span>
+          </a>
+
           <small>Account</small>
-          <a href="#signout" id="navSignout">Sign out</a>
+          <a href="#signout" id="navSignout">
+            <span class="left"><span class="icon">⤴</span>Sign out</span>
+            <span class="badge">Exit</span>
+          </a>
         </div>
 
-        <div class="meta" style="padding:10px 6px;">
+        <div class="side-meta">
           Backend: <code id="apiBase">http://localhost:3000</code><br />
           Poll: <span id="pollSeconds">3</span>s
         </div>
@@ -542,8 +685,8 @@
         <header>
           <div class="row" style="flex:1;">
             <div class="top-search" title="Search">
-              <span style="color: var(--muted); font-weight: 900;">⌕</span>
-              <input id="globalSearch" placeholder="Find your next charge" />
+              <span style="color: rgba(226, 232, 240, 0.70); font-weight: 950;">⌕</span>
+              <input id="globalSearch" placeholder="Search chargers, sites, IDs…" />
             </div>
           </div>
 
@@ -561,15 +704,15 @@
 
             <div class="cards">
               <div class="card">
-                <div class="label">Online chargers</div>
+                <div class="label">Online Chargers</div>
                 <div class="value" id="onlineCount">—</div>
               </div>
               <div class="card">
-                <div class="label">Offline chargers</div>
+                <div class="label">Offline Chargers</div>
                 <div class="value" id="offlineCount">—</div>
               </div>
               <div class="card">
-                <div class="label">Charge locations</div>
+                <div class="label">Charge Locations</div>
                 <div class="value" id="locationsCount">—</div>
               </div>
             </div>
@@ -579,20 +722,20 @@
                 <div class="panel-header">
                   <div>
                     <div class="panel-title">Faulted chargers</div>
-                    <div class="subtext">These chargers recently reported an error</div>
+                    <div class="subtext">Chargers that recently reported an error</div>
                   </div>
                 </div>
-                <div style="padding: 16px; color: var(--muted);" id="faultedList">No faulted chargers</div>
+                <div style="padding: 16px; color: rgba(226, 232, 240, 0.75);" id="faultedList">No faulted chargers</div>
               </div>
 
               <div class="panel">
                 <div class="panel-header">
                   <div>
                     <div class="panel-title">Offline chargers</div>
-                    <div class="subtext">These chargers recently lost their internet connection</div>
+                    <div class="subtext">Chargers that recently went offline</div>
                   </div>
                 </div>
-                <div style="padding: 16px; color: var(--muted);" id="offlineList">No offline chargers</div>
+                <div style="padding: 16px; color: rgba(226, 232, 240, 0.75);" id="offlineList">No offline chargers</div>
               </div>
             </div>
 
@@ -629,13 +772,14 @@
 
           <!-- CHARGERS VIEW -->
           <section id="viewChargers" style="display:none;">
-            <div class="section-title">Customise and control your chargers</div>
+            <div class="section-title">Chargers</div>
+            <div class="subtext">Fleet overview with connector status and OCPP message drill-down.</div>
 
             <div class="panel" style="margin-top:14px;">
               <div class="panel-header">
                 <div class="filter-pills">
                   <div class="filter-pill" id="pillConnectivity">＋ Connectivity <span class="caret">▾</span></div>
-                  <div class="filter-pill" id="pillConnectorStatus">＋ Connector status <span class="caret">▾</span></div>
+                  <div class="filter-pill" id="pillConnectorStatus">＋ OCPP messages <span class="caret">▾</span></div>
                   <div class="filter-pill" id="pillChargerStatus">＋ Charger status <span class="caret">▾</span></div>
                   <div class="filter-pill" id="pillFirmware">＋ Firmware version <span class="caret">▾</span></div>
                 </div>
@@ -661,7 +805,7 @@
                     </tr>
                   </thead>
                   <tbody id="chargersTbody">
-                    <tr><td colspan="5" style="color: var(--muted);">Loading…</td></tr>
+                    <tr><td colspan="5" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -671,12 +815,13 @@
           <!-- PRICING VIEW -->
           <section id="viewPricing" style="display:none;">
             <div class="section-title">Pricing</div>
+            <div class="subtext">Set global tariffs. Driver price is derived from base tariff + markup.</div>
 
             <div class="panel" style="margin-top:14px;">
               <div class="panel-header">
                 <div>
                   <div class="panel-title">Global tariff</div>
-                  <div class="subtext">Set the base tariff (ex VAT). Drivers pay an additional 10% markup.</div>
+                  <div class="subtext">Base tariff (ex VAT). Platform applies markup.</div>
                 </div>
                 <div class="row">
                   <button class="btn" id="btnPricingSave">Save</button>
@@ -694,12 +839,12 @@
                         step="0.0001"
                         min="0"
                         placeholder="0.46"
-                        style="width: 240px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font-size: 18px; font-weight: 900;"
+                        style="width: 260px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 18px; font-weight: 950; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
                       />
                       <div class="kbd">Markup: <span id="platformMarkupLabel">—</span></div>
                     </div>
                     <div class="subtext" style="margin-top:10px;">
-                      This is what the CPO earns per kWh (platform fee is added on top).
+                      CPO payout is the base. Platform fee is derived from markup.
                     </div>
                   </div>
 
@@ -708,15 +853,15 @@
                     <div style="display:grid; gap:10px; margin-top:10px;">
                       <div style="display:flex; justify-content:space-between; gap:10px;">
                         <div class="subtext">Driver price / kWh</div>
-                        <div style="font-weight:950;" id="driverPriceLabel">—</div>
+                        <div style="font-weight:980;" id="driverPriceLabel">—</div>
                       </div>
                       <div style="display:flex; justify-content:space-between; gap:10px;">
                         <div class="subtext">CPO payout / kWh</div>
-                        <div style="font-weight:950;" id="payoutLabel">—</div>
+                        <div style="font-weight:980;" id="payoutLabel">—</div>
                       </div>
                       <div style="display:flex; justify-content:space-between; gap:10px;">
                         <div class="subtext">Platform fee / kWh</div>
-                        <div style="font-weight:950;" id="platformFeeLabel">—</div>
+                        <div style="font-weight:980;" id="platformFeeLabel">—</div>
                       </div>
                     </div>
                     <div class="subtext" style="margin-top:12px;">
@@ -726,7 +871,7 @@
                 </div>
 
                 <div class="meta" style="padding: 12px 0 0;">
-                  Tip: change the number and click <b>Save</b>.
+                  Tip: update the base tariff and click <b>Save</b>.
                 </div>
               </div>
             </div>
@@ -749,11 +894,11 @@
         <div class="modal-body">
           <div class="modal-side">
             <div style="display:flex;align-items:center;justify-content:space-between;">
-              <div style="font-weight:950;">Filter by OCPP Operation:</div>
+              <div style="font-weight:980;">Filter by OCPP Operation</div>
               <button class="btn secondary" id="btnOpsClear">Clear</button>
             </div>
             <div class="checklist" id="opsChecklist" aria-label="OCPP operations checklist">
-              <div style="color: var(--muted);">Loading…</div>
+              <div style="color: rgba(226, 232, 240, 0.65);">Loading…</div>
             </div>
 
             <div style="margin-top: 12px;" class="row">
@@ -767,7 +912,7 @@
           </div>
 
           <div class="modal-main">
-            <div style="padding: 10px 16px; border-bottom: 1px solid var(--border); display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <div style="padding: 10px 16px; border-bottom: 1px solid rgba(148, 163, 184, 0.12); display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
               <button class="btn secondary" id="btnMsgsPrev">‹ Prev</button>
               <button class="btn secondary" id="btnMsgsNext">Next ›</button>
               <div class="subtext" id="msgsMeta">—</div>
@@ -777,13 +922,13 @@
               <table>
                 <thead>
                   <tr>
-                    <th style="min-width: 180px;">OcppOperation</th>
+                    <th style="min-width: 180px;">OCPP Operation</th>
                     <th style="min-width: 260px;">Message</th>
                     <th style="min-width: 260px;">Response</th>
                   </tr>
                 </thead>
                 <tbody id="messagesTbody">
-                  <tr><td colspan="3" style="color: var(--muted);">Select a charger…</td></tr>
+                  <tr><td colspan="3" style="color: rgba(226, 232, 240, 0.65);">Select a charger…</td></tr>
                 </tbody>
               </table>
             </div>
@@ -791,14 +936,14 @@
             <div class="split" id="msgDetails" style="display:none;">
               <div>
                 <div style="display:flex;align-items:center;justify-content:space-between; margin-bottom:8px;">
-                  <div style="font-weight:950;">Message</div>
+                  <div style="font-weight:980;">Message</div>
                   <button class="btn secondary" id="btnCopyMsg">Copy</button>
                 </div>
                 <div class="jsonbox" id="msgJson">—</div>
               </div>
               <div>
                 <div style="display:flex;align-items:center;justify-content:space-between; margin-bottom:8px;">
-                  <div style="font-weight:950;">Response</div>
+                  <div style="font-weight:980;">Response</div>
                   <button class="btn secondary" id="btnCopyRes">Copy</button>
                 </div>
                 <div class="jsonbox" id="resJson">—</div>

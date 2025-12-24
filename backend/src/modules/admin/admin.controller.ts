@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Query, Post, Patch } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -459,6 +459,109 @@ export class AdminController {
     ]);
 
     return { total, items };
+  }
+
+  // ===== Drivers + RFID fobs (admin) =====
+
+  @Get('drivers')
+  async listDrivers() {
+    return this.prisma.driver.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { fobs: true },
+    });
+  }
+
+  @Post('drivers')
+  async createDriver(@Body() body: { name: string; email?: string | null }) {
+    const name = String(body.name ?? '').trim();
+    if (!name) return { ok: false, error: 'name is required' };
+
+    const email = body.email ? String(body.email).trim() : null;
+
+    const driver = await this.prisma.driver.create({
+      data: { name, email: email || null },
+    });
+
+    return { ok: true, driver };
+  }
+
+  @Get('rfid-fobs')
+  async listFobs(@Query('active') active?: string) {
+    const activeFilter =
+      active === undefined ? undefined : String(active).toLowerCase() === 'true';
+
+    return this.prisma.rfidFob.findMany({
+      where: activeFilter === undefined ? {} : { active: activeFilter },
+      orderBy: { createdAt: 'desc' },
+      include: { driver: true },
+    });
+  }
+
+  @Post('rfid-fobs')
+  async createFob(
+    @Body() body: { uid: string; label?: string; driverId?: number },
+  ) {
+    const uid = String(body.uid ?? '').trim();
+    if (!uid) return { ok: false, error: 'uid is required' };
+
+    const label = body.label ? String(body.label).trim() : null;
+    const driverId =
+      body.driverId === undefined ? undefined : Number(body.driverId);
+
+    const fob = await this.prisma.rfidFob.create({
+      data: {
+        uid,
+        label,
+        ...(driverId ? { driver: { connect: { id: driverId } } } : {}),
+      },
+      include: { driver: true },
+    });
+
+    return { ok: true, fob };
+  }
+
+  @Put('rfid-fobs/:id/assign')
+  async assignFob(
+    @Param('id') id: string,
+    @Body() body: { driverId: number | null },
+  ) {
+    const fobId = Number(id);
+    if (!Number.isFinite(fobId)) return { ok: false, error: 'invalid fob id' };
+
+    const driverId =
+      body.driverId === null ? null : Number(body.driverId);
+
+    const fob = await this.prisma.rfidFob.update({
+      where: { id: fobId },
+      data: {
+        driverId: driverId === null ? null : driverId,
+      },
+      include: { driver: true },
+    });
+
+    return { ok: true, fob };
+  }
+
+  @Patch('rfid-fobs/:id')
+  async updateFob(
+    @Param('id') id: string,
+    @Body() body: { label?: string | null; active?: boolean },
+  ) {
+    const fobId = Number(id);
+    if (!Number.isFinite(fobId)) return { ok: false, error: 'invalid fob id' };
+
+    const fob = await this.prisma.rfidFob.update({
+      where: { id: fobId },
+      data: {
+        ...(body.label !== undefined
+          ? { label: body.label ? String(body.label).trim() : null }
+          : {}),
+        ...(body.active !== undefined ? { active: !!body.active } : {}),
+      },
+      include: { driver: true },
+    });
+
+    return { ok: true, fob };
   }
 }
 
