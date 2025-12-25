@@ -95,7 +95,13 @@ model AdminUser {
   id           Int      @id @default(autoincrement())
   email        String   @unique
   passwordHash String
+  role         AdminRole @default(ADMIN)
   createdAt    DateTime @default(now())
+}
+
+enum AdminRole {
+  ADMIN
+  SUPER_ADMIN
 }
 
 // Global pricing configuration (single row used by the platform)

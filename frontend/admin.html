@@ -640,6 +640,70 @@
         .split { grid-template-columns: 1fr; }
         .chart-box { height: 220px; }
       }
+
+      /* --- Auth overlay --- */
+      .auth-backdrop {
+        position: fixed;
+        inset: 0;
+        background:
+          radial-gradient(800px 420px at 20% 10%, rgba(124, 58, 237, 0.22), transparent 60%),
+          rgba(2, 6, 23, 0.75);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 300;
+        backdrop-filter: blur(6px);
+      }
+      .auth-card {
+        width: min(420px, 92vw);
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(7, 10, 18, 0.85);
+        padding: 20px;
+        box-shadow: var(--shadow);
+      }
+      .auth-title {
+        font-size: 20px;
+        font-weight: 980;
+        letter-spacing: -0.3px;
+      }
+      .auth-sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .auth-field {
+        margin-top: 12px;
+        display: grid;
+        gap: 8px;
+      }
+      .auth-field label {
+        font-size: 12px;
+        color: rgba(226, 232, 240, 0.72);
+        font-weight: 900;
+      }
+      .auth-field input {
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255,255,255,0.03);
+        color: rgba(226,232,240,0.92);
+        outline: none;
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .auth-row {
+        margin-top: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .auth-msg {
+        margin-top: 10px;
+        font-size: 12px;
+        color: rgba(226, 232, 240, 0.70);
+      }
     </style>
   </head>
 
@@ -673,6 +737,10 @@
           </a>
 
           <small>Account</small>
+          <a href="#users" id="navUsers">
+            <span class="left"><span class="icon">U</span>Users</span>
+            <span class="badge">Admin</span>
+          </a>
           <a href="#signout" id="navSignout">
             <span class="left"><span class="icon">⤴</span>Sign out</span>
             <span class="badge">Exit</span>
@@ -944,7 +1012,114 @@
               </div>
             </div>
           </section>
+
+          <!-- USERS VIEW -->
+          <section id="viewUsers" style="display:none;">
+            <div class="section-title">Users</div>
+            <div class="subtext">Manage admin accounts (super admin only).</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Create admin user</div>
+                  <div class="subtext">Invite an admin or super admin.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateUser">Create user</button>
+                </div>
+              </div>
+
+              <div style="padding: 16px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Email</div>
+                    <input
+                      id="userEmailInput"
+                      type="email"
+                      placeholder="admin@example.com"
+                      style="margin-top:10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 14px; font-weight: 900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
+                    />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Password</div>
+                    <input
+                      id="userPasswordInput"
+                      type="password"
+                      placeholder="At least 8 characters"
+                      style="margin-top:10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 14px; font-weight: 900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
+                    />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Role</div>
+                    <select
+                      id="userRoleInput"
+                      style="margin-top:10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 14px; font-weight: 900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
+                    >
+                      <option value="ADMIN">ADMIN</option>
+                      <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="meta" style="padding: 12px 0 0;">
+                  Passwords are stored hashed in the backend.
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Admin users</div>
+                  <div class="subtext">Active admin accounts.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnUsersRefresh">Refresh</button>
+                </div>
+              </div>
+
+              <div class="panel-header" style="border-bottom: 0; padding-top: 0;">
+                <div class="subtext" id="usersMeta">Last updated: —</div>
+              </div>
+
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">ID</th>
+                      <th style="min-width: 260px;">Email</th>
+                      <th style="min-width: 180px;">Role</th>
+                      <th style="min-width: 220px;">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usersTbody">
+                    <tr><td colspan="4" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
         </main>
+      </div>
+    </div>
+
+    <!-- Auth overlay -->
+    <div class="auth-backdrop" id="authBackdrop" aria-hidden="true">
+      <div class="auth-card">
+        <div class="auth-title">Admin Sign In</div>
+        <div class="auth-sub">Use your admin account to access the console.</div>
+        <div class="auth-field">
+          <label for="authEmail">Email</label>
+          <input id="authEmail" type="email" placeholder="admin@example.com" autocomplete="username" />
+        </div>
+        <div class="auth-field">
+          <label for="authPassword">Password</label>
+          <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <div class="auth-row">
+          <button class="btn" id="btnAuthLogin">Sign in</button>
+          <button class="btn secondary" id="btnAuthClear">Clear</button>
+        </div>
+        <div class="auth-msg" id="authMessage">—</div>
       </div>
     </div>
 
@@ -1026,10 +1201,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     <script>
-      const API_BASE = 'http://localhost:3000';
+      const API_BASE = 'http://localhost:3001';
       const POLL_MS = 3000;
       const ONLINE_WINDOW_SECONDS = 120;
 
+      const AUTH_TOKEN_KEY = 'ct_admin_token_v1';
       const STORAGE_KEY = 'ct_admin_ui_v1';
 
       const els = {
@@ -1040,11 +1216,14 @@
         navChargers: document.getElementById('navChargers'),
         navPricing: document.getElementById('navPricing'),
         navAnalytics: document.getElementById('navAnalytics'),
+        navUsers: document.getElementById('navUsers'),
+        navSignout: document.getElementById('navSignout'),
 
         viewDashboard: document.getElementById('viewDashboard'),
         viewChargers: document.getElementById('viewChargers'),
         viewPricing: document.getElementById('viewPricing'),
         viewAnalytics: document.getElementById('viewAnalytics'),
+        viewUsers: document.getElementById('viewUsers'),
 
         // pricing
         btnPricingSave: document.getElementById('btnPricingSave'),
@@ -1089,6 +1268,23 @@
         analyticsMeta: document.getElementById('analyticsMeta'),
         analyticsEnergyChart: document.getElementById('analyticsEnergyChart'),
         analyticsSessionsChart: document.getElementById('analyticsSessionsChart'),
+
+        // users
+        btnCreateUser: document.getElementById('btnCreateUser'),
+        btnUsersRefresh: document.getElementById('btnUsersRefresh'),
+        usersTbody: document.getElementById('usersTbody'),
+        usersMeta: document.getElementById('usersMeta'),
+        userEmailInput: document.getElementById('userEmailInput'),
+        userPasswordInput: document.getElementById('userPasswordInput'),
+        userRoleInput: document.getElementById('userRoleInput'),
+
+        // auth
+        authBackdrop: document.getElementById('authBackdrop'),
+        authEmail: document.getElementById('authEmail'),
+        authPassword: document.getElementById('authPassword'),
+        btnAuthLogin: document.getElementById('btnAuthLogin'),
+        btnAuthClear: document.getElementById('btnAuthClear'),
+        authMessage: document.getElementById('authMessage'),
 
         // modal
         messagesBackdrop: document.getElementById('messagesBackdrop'),
@@ -1142,6 +1338,61 @@
       let analyticsCache = null;
       let analyticsEnergyChartInstance = null;
       let analyticsSessionsChartInstance = null;
+
+      // users cache
+      let usersCache = [];
+
+      // auth
+      let authUser = null;
+
+      function getAuthToken() {
+        try {
+          return localStorage.getItem(AUTH_TOKEN_KEY) || '';
+        } catch {
+          return '';
+        }
+      }
+
+      function setAuthToken(token) {
+        try {
+          localStorage.setItem(AUTH_TOKEN_KEY, token);
+        } catch { /* ignore */ }
+      }
+
+      function clearAuthToken() {
+        try {
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+        } catch { /* ignore */ }
+      }
+
+      function setAuthMessage(msg) {
+        if (els.authMessage) els.authMessage.textContent = msg || '—';
+      }
+
+      function showAuth() {
+        if (!els.authBackdrop) return;
+        els.authBackdrop.style.display = 'flex';
+        els.authBackdrop.setAttribute('aria-hidden', 'false');
+        stopOverviewPoll();
+      }
+
+      function hideAuth() {
+        if (!els.authBackdrop) return;
+        els.authBackdrop.style.display = 'none';
+        els.authBackdrop.setAttribute('aria-hidden', 'true');
+      }
+
+      function isSuperAdmin() {
+        return String(authUser?.role || '').toUpperCase() === 'SUPER_ADMIN';
+      }
+
+      function updateRoleUi() {
+        const showUsers = isSuperAdmin();
+        if (els.navUsers) els.navUsers.style.display = showUsers ? '' : 'none';
+        if (!showUsers && getViewFromHash() === 'users') {
+          location.hash = '#dashboard';
+        }
+      }
 
       function toast(type, title, message, timeoutMs = 2600) {
         const wrap = els.toastWrap;
@@ -1221,6 +1472,7 @@
         if (h.startsWith('chargers')) return 'chargers';
         if (h.startsWith('pricing')) return 'pricing';
         if (h.startsWith('analytics')) return 'analytics';
+        if (h.startsWith('users')) return 'users';
         return 'dashboard';
       }
 
@@ -1229,11 +1481,13 @@
         els.navChargers.classList.toggle('active', view === 'chargers');
         els.navPricing.classList.toggle('active', view === 'pricing');
         els.navAnalytics.classList.toggle('active', view === 'analytics');
+        els.navUsers.classList.toggle('active', view === 'users');
 
         els.viewDashboard.style.display = view === 'dashboard' ? '' : 'none';
         els.viewChargers.style.display = view === 'chargers' ? '' : 'none';
         els.viewPricing.style.display = view === 'pricing' ? '' : 'none';
         els.viewAnalytics.style.display = view === 'analytics' ? '' : 'none';
+        els.viewUsers.style.display = view === 'users' ? '' : 'none';
       }
 
       function statusToDotClass(status) {
@@ -1331,8 +1585,21 @@
       }
 
       async function fetchJson(url, opts) {
-        const res = await fetch(url, opts);
+        const token = getAuthToken();
+        const init = opts || {};
+        const headers = new Headers(init.headers || {});
+        if (token && !headers.has('Authorization')) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
+        init.headers = headers;
+
+        const res = await fetch(url, init);
         if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            clearAuthToken();
+            showAuth();
+            throw new Error('Unauthorized');
+          }
           const text = await res.text().catch(() => '');
           throw new Error(`${res.status} ${res.statusText}${text ? ` — ${text}` : ''}`);
         }
@@ -1679,6 +1946,72 @@
         renderAnalyticsCharts();
       }
 
+      function renderUsers() {
+        if (!els.usersTbody) return;
+        const items = Array.isArray(usersCache) ? usersCache : [];
+
+        if (!items.length) {
+          els.usersTbody.innerHTML = `<tr><td colspan="4" style="color: rgba(226, 232, 240, 0.65);">No users found.</td></tr>`;
+          return;
+        }
+
+        els.usersTbody.innerHTML = items.map(u => `
+          <tr>
+            <td style="font-weight:900;">${u.id}</td>
+            <td>${escapeHtml(u.email ?? '—')}</td>
+            <td>${escapeHtml(u.role ?? '—')}</td>
+            <td>${fmtDate(u.createdAt)}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadUsers() {
+        if (!isSuperAdmin()) {
+          toast('warn', 'Access denied', 'Super admin role required.');
+          return;
+        }
+        const data = await fetchJson(`${API_BASE}/admin/users`);
+        usersCache = Array.isArray(data) ? data : [];
+        if (els.usersMeta) {
+          els.usersMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        }
+        renderUsers();
+      }
+
+      async function createUser() {
+        if (!isSuperAdmin()) {
+          toast('warn', 'Access denied', 'Super admin role required.');
+          return;
+        }
+
+        const email = String(els.userEmailInput?.value || '').trim().toLowerCase();
+        const password = String(els.userPasswordInput?.value || '');
+        const role = String(els.userRoleInput?.value || 'ADMIN');
+
+        if (!email || !password) {
+          toast('warn', 'Missing fields', 'Email and password are required.');
+          return;
+        }
+
+        const res = await fetchJson(`${API_BASE}/admin/users`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email, password, role }),
+        });
+
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+
+        if (els.userEmailInput) els.userEmailInput.value = '';
+        if (els.userPasswordInput) els.userPasswordInput.value = '';
+        if (els.userRoleInput) els.userRoleInput.value = 'ADMIN';
+
+        toast('success', 'User created', 'Admin user created.');
+        await loadUsers();
+      }
+
       function openMessagesModal(chargerId) {
         selectedCharger = chargerId;
         selectedMsgId = null;
@@ -1857,6 +2190,9 @@
         if (view === 'analytics') {
           loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
         }
+        if (view === 'users') {
+          loadUsers().catch(err => toast('error', 'Users failed', String(err?.message || err)));
+        }
       });
 
       els.globalSearch.addEventListener('input', () => {
@@ -1886,8 +2222,60 @@
         savePricing().catch(err => toast('error', 'Save failed', String(err?.message || err)));
       });
 
+      els.navSignout?.addEventListener('click', (e) => {
+        e.preventDefault();
+        fetchJson(`${API_BASE}/auth/logout`, { method: 'POST' }).catch(() => {});
+        clearAuthToken();
+        authUser = null;
+        updateRoleUi();
+        showAuth();
+      });
+
+      els.btnAuthClear?.addEventListener('click', () => {
+        if (els.authEmail) els.authEmail.value = '';
+        if (els.authPassword) els.authPassword.value = '';
+        setAuthMessage('—');
+      });
+
+      els.btnAuthLogin?.addEventListener('click', async () => {
+        const email = String(els.authEmail?.value || '').trim();
+        const password = String(els.authPassword?.value || '');
+        if (!email || !password) {
+          setAuthMessage('Email and password required.');
+          return;
+        }
+
+        try {
+          setAuthMessage('Signing in…');
+          const res = await fetchJson(`${API_BASE}/auth/login`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          if (!res?.accessToken) {
+            setAuthMessage('Login failed.');
+            return;
+          }
+          setAuthToken(res.accessToken);
+          authUser = res.user ?? null;
+          updateRoleUi();
+          hideAuth();
+          await boot();
+        } catch (err) {
+          setAuthMessage(String(err?.message || err));
+        }
+      });
+
       els.btnAnalyticsRefresh?.addEventListener('click', () => {
         loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
+      });
+
+      els.btnUsersRefresh?.addEventListener('click', () => {
+        loadUsers().catch(err => toast('error', 'Users failed', String(err?.message || err)));
+      });
+
+      els.btnCreateUser?.addEventListener('click', () => {
+        createUser().catch(err => toast('error', 'Create user failed', String(err?.message || err)));
       });
 
       // manual revenue refresh (also re-enables endpoint attempts)
@@ -2011,11 +2399,24 @@
 
       async function boot() {
         try {
+          const token = getAuthToken();
+          if (!token) {
+            showAuth();
+            return;
+          }
+
+          const me = await fetchJson(`${API_BASE}/auth/me`);
+          authUser = me?.user ?? null;
+          hideAuth();
+          updateRoleUi();
+
           const view = getViewFromHash();
           if (view === 'pricing') {
             await loadPricing();
           } else if (view === 'analytics') {
             await loadAnalytics('30d');
+          } else if (view === 'users') {
+            await loadUsers();
           } else {
             await refreshOverviewAndChargers();
             startOverviewPoll();

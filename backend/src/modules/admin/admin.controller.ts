@@ -1,7 +1,11 @@
 import { Body, Controller, Get, Param, Put, Query, Post, Patch, UseGuards } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { AdminRole, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AdminApiKeyGuard } from '../../common/guards/admin-api-key.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { AuthService } from '../auth/auth.service';
+import { CreateAdminUserDto } from '../auth/dto/auth.dto';
 import {
   AssignFobDto,
   CreateDriverDto,
@@ -10,10 +14,14 @@ import {
   UpdatePricingDto,
 } from './dto/admin.dto';
 
-@UseGuards(AdminApiKeyGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPER_ADMIN')
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auth: AuthService,
+  ) {}
 
   // quick probe route to confirm AdminController is mounted
   @Get('ping')
@@ -51,6 +59,32 @@ export class AdminController {
       stoppedAt: t.stoppedAt,
       stopReason: t.stopReason,
     }));
+  }
+
+  // ===== Admin users (super admin only) =====
+
+  @Get('users')
+  @Roles('SUPER_ADMIN')
+  async listAdminUsers() {
+    return this.prisma.adminUser.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, email: true, role: true, createdAt: true },
+    });
+  }
+
+  @Post('users')
+  @Roles('SUPER_ADMIN')
+  async createAdminUser(@Body() body: CreateAdminUserDto) {
+    const email = String(body.email ?? '').trim().toLowerCase();
+    const password = String(body.password ?? '');
+    const roleRaw = String(body.role ?? 'ADMIN').toUpperCase();
+    const role = roleRaw === 'SUPER_ADMIN' ? AdminRole.SUPER_ADMIN : AdminRole.ADMIN;
+
+    if (!email || !password) {
+      return { ok: false, error: 'email and password are required' };
+    }
+
+    return this.auth.createAdminUser(email, password, role);
   }
 
   /**

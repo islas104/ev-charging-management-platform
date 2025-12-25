@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AdminController } from './admin.controller';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AdminApiKeyGuard } from '../../common/guards/admin-api-key.guard';
+import { AuthModule } from '../auth/auth.module';
+import { RolesGuard } from '../../common/guards/roles.guard';
 
 @Module({
+  imports: [AuthModule],
   controllers: [AdminController],
-  providers: [PrismaService, AdminApiKeyGuard],
+  providers: [PrismaService, RolesGuard],
 })
 export class AdminModule {}

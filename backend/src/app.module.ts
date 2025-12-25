@@ -9,6 +9,7 @@ import { AppController } from './app.controller';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { OcppModule } from './modules/ocpp/ocpp.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -20,7 +21,6 @@ import { PrismaModule } from './prisma/prisma.module';
         NODE_ENV: Joi.string().valid('development', 'test', 'production').default('development'),
         PORT: Joi.number().default(3000),
         DATABASE_URL: Joi.string().uri().required(),
-        ADMIN_API_KEY: Joi.string().allow('').optional(),
         CORS_ORIGINS: Joi.string().allow('').optional(),
         HTTP_BODY_LIMIT: Joi.string().default('1mb'),
         THROTTLE_TTL: Joi.number().default(60),
@@ -30,8 +30,12 @@ import { PrismaModule } from './prisma/prisma.module';
       }),
     }),
     ThrottlerModule.forRoot({
-      ttl: Number(process.env.THROTTLE_TTL ?? 60),
-      limit: Number(process.env.THROTTLE_LIMIT ?? 120),
+      throttlers: [
+        {
+          ttl: Number(process.env.THROTTLE_TTL ?? 60),
+          limit: Number(process.env.THROTTLE_LIMIT ?? 120),
+        },
+      ],
     }),
     LoggerModule.forRoot({
       pinoHttp: {
@@ -49,6 +53,7 @@ import { PrismaModule } from './prisma/prisma.module';
     }),
     OcppModule,
     AdminModule,
+    AuthModule,
   ],
   controllers: [
     AppController,

@@ -156,22 +156,28 @@ Response example:
   }
 ]
 ```
-APIs are intentionally unauthenticated for MVP/demo purposes. For production, set `ADMIN_API_KEY`.
+APIs are intentionally unauthenticated for MVP/demo purposes. For production, use JWT auth and set `JWT_SECRET`.
 
 # Environment Configuration
 
 .env.example
 PORT=3000
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ev_charging
-ADMIN_API_KEY=your_admin_key
 OCPP_SHARED_SECRET=your_charger_secret
 THROTTLE_TTL=60
 THROTTLE_LIMIT=120
+JWT_SECRET=change_me
+JWT_EXPIRES_IN=8h
+SUPER_ADMIN_EMAIL=admin@example.com
+SUPER_ADMIN_PASSWORD=change_me
 
 # Running Locally
 
 ## Install Dependencies
 npm install
+
+## Run Migrations
+npx prisma migrate dev
 
 ## Start Development Server
 npm run start:dev
