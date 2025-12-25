@@ -15,7 +15,7 @@ This repository contains a **full end-to-end OCPP implementation**:
 
 -   A **browser-based charger simulator** to emulate real chargers
 
--   A **live admin dashboard** for monitoring charger and session state
+-   A **live admin dashboard** for monitoring charger and session state (JWT login)
 
 The platform demonstrates the **complete EV charging lifecycle** in a clear, inspectable way.
 
@@ -53,9 +53,11 @@ Key Capabilities
 
     -   StopTransaction
 
--   In-memory charger and transaction state
+-   PostgreSQL-backed charger and transaction state (Prisma)
 
--   Admin monitoring API
+-   Admin monitoring API + JWT auth + role-based access
+-   Admin user management (super admin only)
+-   Driver analytics (top drivers by energy)
 
 -   Structured logging
 
@@ -72,15 +74,17 @@ Key Capabilities
 Getting Started
 ---------------
 
-### 1\. Start the Backend
+### 1\. Configure and Start the Backend
 
 `cd backend
+cp .env.example .env
 npm install
+npx prisma migrate dev
 npm run start:dev`
 
 Backend runs on:
 
-`http://localhost:3000`
+`http://localhost:3000` (or `PORT` from `.env`)
 
 Health check:
 
@@ -121,6 +125,11 @@ Shows:
 -   Active transactions
 
 -   Heartbeat timestamps
+-   Pricing, revenue, and driver analytics
+-   Admin users (super admin only)
+
+Login:
+- `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `backend/.env`
 
 * * * * *
 
@@ -158,10 +167,6 @@ This repository intentionally focuses on:
 
 It does **not** yet include:
 
--   Persistent storage
-
--   Authentication
-
 -   Production deployment configuration
 
 * * * * *
@@ -170,10 +175,6 @@ Roadmap
 -------
 
 Planned enhancements include:
-
--   Database persistence (PostgreSQL)
-
--   Authentication and role-based access
 
 -   Dockerisation and CI/CD
 

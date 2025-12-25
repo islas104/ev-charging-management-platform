@@ -156,7 +156,7 @@ Response example:
   }
 ]
 ```
-APIs are intentionally unauthenticated for MVP/demo purposes. For production, use JWT auth and set `JWT_SECRET`.
+Admin APIs are protected by JWT auth with role-based access. Set `JWT_SECRET` and `SUPER_ADMIN_*` in `.env`.
 
 # Environment Configuration
 
@@ -166,6 +166,8 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ev_charging
 OCPP_SHARED_SECRET=your_charger_secret
 THROTTLE_TTL=60
 THROTTLE_LIMIT=120
+HTTP_BODY_LIMIT=1mb
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 JWT_SECRET=change_me
 JWT_EXPIRES_IN=8h
 SUPER_ADMIN_EMAIL=admin@example.com
@@ -184,13 +186,29 @@ npm run start:dev
 
 Backend will run at:
 
-http://localhost:3000
+http://localhost:3000 (or `PORT` from `.env`)
 
 ## Health check:
 GET /health
 
 ## Readiness check:
 GET /ready
+
+# Auth & Roles
+
+Login:
+POST /auth/login
+
+Current user:
+GET /auth/me
+
+Roles:
+- ADMIN
+- SUPER_ADMIN
+
+Admin users (super admin only):
+- GET /admin/users
+- POST /admin/users
 
 # Design Principles
 
@@ -200,7 +218,6 @@ GET /ready
 - No premature infrastructure complexity
 - Easy to extend for persistence and scaling
 - Known Limitations (Intentional)
-- No authentication or authorisation
 - Single-instance only
 - No billing or tariff logic
 - These are intentional for MVP clarity.
