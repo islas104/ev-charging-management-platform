@@ -59,7 +59,22 @@ export async function routeOcppMessage(
   }
 
   const [messageType, messageId, action, payload] = message;
-  if (messageType !== OcppMessageType.CALL) return;
+  if (messageType !== OcppMessageType.CALL) {
+    if (messageType === OcppMessageType.CALL_RESULT || messageType === OcppMessageType.CALL_ERROR) {
+      const msgId = String(messageId ?? '');
+      await prisma.ocppMessageLog.create({
+        data: {
+          chargerId: (await prisma.charger.findUnique({ where: { chargerId: (socket as any).ocpp?.chargerId } }))?.id ?? 0,
+          direction: 'IN',
+          operation: messageType === OcppMessageType.CALL_RESULT ? 'CALL_RESULT' : 'CALL_ERROR',
+          messageId: msgId,
+          raw: (payload ?? {}) as Prisma.InputJsonValue,
+          status: messageType === OcppMessageType.CALL_ERROR ? 'Error' : 'Ok',
+        },
+      }).catch(() => {});
+    }
+    return;
+  }
 
   const { chargerId } = (socket as any).ocpp;
   const msgId = String(messageId ?? '');
@@ -76,6 +91,8 @@ export async function routeOcppMessage(
     'StartTransaction',
     'StopTransaction',
     'StatusNotification',
+    'Authorize',
+    'MeterValues',
   ]);
 
   if (!allowedActions.has(actionName)) {
@@ -210,6 +227,13 @@ export async function routeOcppMessage(
 
     const charger = await prisma.charger.findUnique({
       where: { chargerId },
+      include: {
+        location: {
+          include: {
+            tariff: true,
+          },
+        },
+      },
     });
 
     if (!charger) {
@@ -225,6 +249,34 @@ export async function routeOcppMessage(
 
     const ocppTransactionId = (lastTx?.ocppTransactionId ?? 1000) + 1;
 
+    const fob = await prisma.rfidFob.findUnique({
+      where: { uid: idTag },
+      include: {
+        driver: {
+          include: {
+            groups: {
+              include: {
+                driverGroup: {
+                  include: {
+                    tariffs: {
+                      include: {
+                        tariff: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const locationTariff = charger?.location?.tariff ?? null;
+    const groupTariff =
+      fob?.driver?.groups?.[0]?.driverGroup?.tariffs?.[0]?.tariff ?? null;
+    const effectiveTariff = groupTariff || locationTariff;
+
     await prisma.transaction.create({
       data: {
         ocppTransactionId,
@@ -232,6 +284,14 @@ export async function routeOcppMessage(
         idTag,
         meterStart,
         startedAt: ts,
+        locationId: charger.locationId ?? null,
+        driverId: fob?.driver?.id ?? null,
+        driverGroupId: fob?.driver?.groups?.[0]?.driverGroupId ?? null,
+        startFee: effectiveTariff?.startFee ?? null,
+        energyFee: effectiveTariff?.energyFee ?? null,
+        idleFee: effectiveTariff?.idleFee ?? null,
+        vatRate: effectiveTariff?.vatRate ?? null,
+        currency: effectiveTariff?.currency ?? null,
       },
     });
 
@@ -386,6 +446,62 @@ export async function routeOcppMessage(
       'StatusNotification persisted',
     );
 
+    return;
+  }
+
+  /* ---------- Authorize ---------- */
+  if (actionName === 'Authorize') {
+    if (!payload || typeof payload !== 'object') {
+      sendCallError(socket, msgId, 'FormationViolation', 'Invalid Authorize payload');
+      return;
+    }
+
+    const idTag = String(payload.idTag ?? '').trim();
+    if (!idTag) {
+      sendCallError(socket, msgId, 'PropertyConstraintViolation', 'Missing idTag');
+      return;
+    }
+
+    const fob = await prisma.rfidFob.findUnique({
+      where: { uid: idTag },
+    });
+
+    const response = {
+      idTagInfo: {
+        status: fob?.active ? 'Accepted' : 'Rejected',
+      },
+    };
+
+    socket.send(JSON.stringify([OcppMessageType.CALL_RESULT, msgId, response]));
+
+    await prisma.ocppMessageLog.create({
+      data: {
+        chargerId: chargerRow.id,
+        direction: 'OUT',
+        operation: 'Authorize',
+        messageId: msgId,
+        raw: response as unknown as Prisma.InputJsonValue,
+        status: response.idTagInfo?.status ?? null,
+      },
+    });
+
+    return;
+  }
+
+  /* ---------- MeterValues ---------- */
+  if (actionName === 'MeterValues') {
+    const response = {};
+    socket.send(JSON.stringify([OcppMessageType.CALL_RESULT, msgId, response]));
+
+    await prisma.ocppMessageLog.create({
+      data: {
+        chargerId: chargerRow.id,
+        direction: 'OUT',
+        operation: 'MeterValues',
+        messageId: msgId,
+        raw: response as unknown as Prisma.InputJsonValue,
+      },
+    });
     return;
   }
 }

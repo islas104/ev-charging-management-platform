@@ -192,7 +192,7 @@ export class AdminController {
     const [totalChargers, onlineChargers, chargeLocations] = await Promise.all([
       this.prisma.charger.count(),
       this.prisma.charger.count({ where: { lastSeenAt: { gte: cutoff } } }),
-      this.prisma.site.count(),
+      this.prisma.location.count(),
     ]);
 
     return {
@@ -221,7 +221,7 @@ export class AdminController {
 
     const chargers = await this.prisma.charger.findMany({
       include: {
-        site: true,
+        location: true,
         connectors: {
           orderBy: { connectorId: 'asc' },
           select: {
@@ -244,7 +244,7 @@ export class AdminController {
         id: c.id,
         chargerId: c.chargerId,
         name: c.chargerId,
-        location: c.site?.name ?? null,
+        location: c.location?.name ?? null,
 
         connectivity: isOnline ? 'Online' : 'Offline',
         lastMessageAt: c.lastSeenAt,
@@ -317,7 +317,7 @@ export class AdminController {
         charger: {
           select: {
             chargerId: true,
-            site: { select: { name: true } },
+            location: { select: { name: true } },
           },
         },
       },
@@ -340,7 +340,7 @@ export class AdminController {
       const day = toYmd(t.startedAt);
       dailyMap.set(day, (dailyMap.get(day) ?? 0) + revenue);
 
-      const loc = t.charger?.site?.name ?? 'Unknown';
+      const loc = t.charger?.location?.name ?? 'Unknown';
       locMap.set(loc, (locMap.get(loc) ?? 0) + revenue);
     }
 
@@ -688,6 +688,295 @@ export class AdminController {
     });
 
     return { ok: true, fob };
+  }
+
+  // ===== Accounts / Locations / Tariffs / QR =====
+
+  @Get('accounts')
+  @Roles('SUPER_ADMIN')
+  async listAccounts() {
+    return this.prisma.account.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  @Post('accounts')
+  @Roles('SUPER_ADMIN')
+  async createAccount(
+    @Body() body: { name: string; type?: string; email?: string },
+  ) {
+    const name = String(body.name ?? '').trim();
+    if (!name) return { ok: false, error: 'name is required' };
+
+    const type = String(body.type ?? 'OWNER').toUpperCase();
+    const email = body.email ? String(body.email).trim() : null;
+
+    const account = await this.prisma.account.create({
+      data: {
+        name,
+        type: type === 'OPERATOR' ? 'OPERATOR' : 'OWNER',
+        email,
+      },
+    });
+
+    return { ok: true, account };
+  }
+
+  @Get('connected-accounts')
+  @Roles('SUPER_ADMIN')
+  async listConnectedAccounts() {
+    return this.prisma.connectedAccount.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { operatorAccount: true, ownerAccount: true },
+    });
+  }
+
+  @Post('connected-accounts')
+  @Roles('SUPER_ADMIN')
+  async createConnectedAccount(
+    @Body() body: { operatorAccountId: number; ownerAccountId: number; serviceFeePercent?: number },
+  ) {
+    const operatorAccountId = Number(body.operatorAccountId);
+    const ownerAccountId = Number(body.ownerAccountId);
+    const serviceFeePercent = Number(body.serviceFeePercent ?? 0);
+
+    if (!Number.isFinite(operatorAccountId) || !Number.isFinite(ownerAccountId)) {
+      return { ok: false, error: 'operatorAccountId and ownerAccountId are required' };
+    }
+
+    const created = await this.prisma.connectedAccount.create({
+      data: {
+        operatorAccountId,
+        ownerAccountId,
+        serviceFeePercent: new Prisma.Decimal(serviceFeePercent),
+      },
+    });
+
+    return { ok: true, connectedAccount: created };
+  }
+
+  @Get('locations')
+  async listLocations() {
+    return this.prisma.location.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { account: true, tariff: true },
+    });
+  }
+
+  @Post('locations')
+  async createLocation(
+    @Body()
+    body: {
+      accountId: number;
+      name: string;
+      address: string;
+      latitude: number;
+      longitude: number;
+      access?: string;
+      visibility?: string;
+      tariffId?: number;
+    },
+  ) {
+    const accountId = Number(body.accountId);
+    if (!Number.isFinite(accountId)) return { ok: false, error: 'accountId is required' };
+
+    const name = String(body.name ?? '').trim();
+    const address = String(body.address ?? '').trim();
+    if (!name || !address) return { ok: false, error: 'name and address are required' };
+
+    const latitude = Number(body.latitude);
+    const longitude = Number(body.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return { ok: false, error: 'latitude and longitude are required' };
+    }
+
+    const access = String(body.access ?? 'PUBLIC').toUpperCase();
+    const visibility = String(body.visibility ?? 'LISTED').toUpperCase();
+
+    const location = await this.prisma.location.create({
+      data: {
+        accountId,
+        name,
+        address,
+        latitude: new Prisma.Decimal(latitude),
+        longitude: new Prisma.Decimal(longitude),
+        access: access === 'PRIVATE' ? 'PRIVATE' : access === 'RESTRICTED' ? 'RESTRICTED' : 'PUBLIC',
+        visibility: visibility === 'UNLISTED' ? 'UNLISTED' : 'LISTED',
+        tariffId: body.tariffId ? Number(body.tariffId) : null,
+      },
+    });
+
+    return { ok: true, location };
+  }
+
+  @Put('locations/:id')
+  async updateLocation(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      name?: string;
+      address?: string;
+      latitude?: number;
+      longitude?: number;
+      access?: string;
+      visibility?: string;
+      tariffId?: number | null;
+    },
+  ) {
+    const locationId = Number(id);
+    if (!Number.isFinite(locationId)) return { ok: false, error: 'invalid location id' };
+
+    const access = body.access ? String(body.access).toUpperCase() : undefined;
+    const visibility = body.visibility ? String(body.visibility).toUpperCase() : undefined;
+
+    const location = await this.prisma.location.update({
+      where: { id: locationId },
+      data: {
+        ...(body.name ? { name: String(body.name).trim() } : {}),
+        ...(body.address ? { address: String(body.address).trim() } : {}),
+        ...(body.latitude !== undefined ? { latitude: new Prisma.Decimal(Number(body.latitude)) } : {}),
+        ...(body.longitude !== undefined ? { longitude: new Prisma.Decimal(Number(body.longitude)) } : {}),
+        ...(access ? { access: access === 'PRIVATE' ? 'PRIVATE' : access === 'RESTRICTED' ? 'RESTRICTED' : 'PUBLIC' } : {}),
+        ...(visibility ? { visibility: visibility === 'UNLISTED' ? 'UNLISTED' : 'LISTED' } : {}),
+        ...(body.tariffId !== undefined ? { tariffId: body.tariffId === null ? null : Number(body.tariffId) } : {}),
+      },
+    });
+
+    return { ok: true, location };
+  }
+
+  @Post('chargers/:chargerId/assign-location')
+  async assignChargerLocation(
+    @Param('chargerId') chargerId: string,
+    @Body() body: { locationId: number | null },
+  ) {
+    const locationId = body.locationId === null ? null : Number(body.locationId);
+    const updated = await this.prisma.charger.update({
+      where: { chargerId },
+      data: { locationId },
+    });
+    return { ok: true, charger: updated };
+  }
+
+  @Get('tariffs')
+  async listTariffs() {
+    return this.prisma.tariff.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  @Post('tariffs')
+  async createTariff(
+    @Body()
+    body: {
+      name: string;
+      startFee: number;
+      energyFee: number;
+      idleFee: number;
+      vatRate?: number;
+      currency?: string;
+    },
+  ) {
+    const name = String(body.name ?? '').trim();
+    if (!name) return { ok: false, error: 'name is required' };
+
+    const startFee = Number(body.startFee);
+    const energyFee = Number(body.energyFee);
+    const idleFee = Number(body.idleFee);
+    if (![startFee, energyFee, idleFee].every(Number.isFinite)) {
+      return { ok: false, error: 'startFee, energyFee, idleFee are required' };
+    }
+
+    const vatRate = Number(body.vatRate ?? 0);
+    const currency = String(body.currency ?? 'GBP').toUpperCase();
+
+    const tariff = await this.prisma.tariff.create({
+      data: {
+        name,
+        startFee: new Prisma.Decimal(startFee),
+        energyFee: new Prisma.Decimal(energyFee),
+        idleFee: new Prisma.Decimal(idleFee),
+        vatRate: new Prisma.Decimal(vatRate),
+        currency,
+      },
+    });
+
+    return { ok: true, tariff };
+  }
+
+  @Get('qr-codes')
+  async listQrCodes() {
+    return this.prisma.qrCode.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { location: true, charger: true },
+    });
+  }
+
+  @Post('qr-codes')
+  async createQrCode(
+    @Body() body: { code: string; locationId: number; chargerId?: number; connectorId?: number },
+  ) {
+    const code = String(body.code ?? '').trim();
+    const locationId = Number(body.locationId);
+    if (!code || !Number.isFinite(locationId)) {
+      return { ok: false, error: 'code and locationId are required' };
+    }
+
+    const qr = await this.prisma.qrCode.create({
+      data: {
+        code,
+        locationId,
+        chargerId: body.chargerId ? Number(body.chargerId) : null,
+        connectorId: body.connectorId ? Number(body.connectorId) : null,
+      },
+    });
+
+    return { ok: true, qr };
+  }
+
+  @Get('driver-groups')
+  async listDriverGroups() {
+    return this.prisma.driverGroup.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { members: true },
+    });
+  }
+
+  @Post('driver-groups')
+  async createDriverGroup(@Body() body: { accountId: number; name: string; description?: string }) {
+    const accountId = Number(body.accountId);
+    const name = String(body.name ?? '').trim();
+    if (!Number.isFinite(accountId) || !name) {
+      return { ok: false, error: 'accountId and name are required' };
+    }
+
+    const group = await this.prisma.driverGroup.create({
+      data: {
+        accountId,
+        name,
+        description: body.description ? String(body.description).trim() : null,
+      },
+    });
+
+    return { ok: true, group };
+  }
+
+  @Post('driver-groups/:id/members')
+  async addDriverGroupMember(
+    @Param('id') id: string,
+    @Body() body: { driverId: number },
+  ) {
+    const driverGroupId = Number(id);
+    const driverId = Number(body.driverId);
+    if (!Number.isFinite(driverGroupId) || !Number.isFinite(driverId)) {
+      return { ok: false, error: 'driverGroupId and driverId are required' };
+    }
+
+    const member = await this.prisma.driverGroupMember.create({
+      data: { driverGroupId, driverId },
+    });
+
+    return { ok: true, member };
   }
 }
 

@@ -736,6 +736,24 @@
             <span class="badge">Drivers</span>
           </a>
 
+          <small>Management</small>
+          <a href="#accounts" id="navAccounts">
+            <span class="left"><span class="icon">◎</span>Accounts</span>
+            <span class="badge">Org</span>
+          </a>
+          <a href="#locations" id="navLocations">
+            <span class="left"><span class="icon">L</span>Locations</span>
+            <span class="badge">GPS</span>
+          </a>
+          <a href="#tariffs" id="navTariffs">
+            <span class="left"><span class="icon">T</span>Tariffs</span>
+            <span class="badge">Rates</span>
+          </a>
+          <a href="#qr" id="navQr">
+            <span class="left"><span class="icon">Q</span>QR</span>
+            <span class="badge">Stickers</span>
+          </a>
+
           <small>Account</small>
           <a href="#users" id="navUsers">
             <span class="left"><span class="icon">U</span>Users</span>
@@ -1013,6 +1031,322 @@
             </div>
           </section>
 
+          <!-- ACCOUNTS VIEW -->
+          <section id="viewAccounts" style="display:none;">
+            <div class="section-title">Accounts</div>
+            <div class="subtext">Create accounts and connected accounts (super admin only).</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Create account</div>
+                  <div class="subtext">Owner or operator account.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateAccount">Create account</button>
+                </div>
+              </div>
+
+              <div style="padding: 16px;">
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Name</div>
+                    <input id="accountNameInput" placeholder="Company Ltd" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Type</div>
+                    <select id="accountTypeInput" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;">
+                      <option value="OWNER">OWNER</option>
+                      <option value="OPERATOR">OPERATOR</option>
+                    </select>
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Email</div>
+                    <input id="accountEmailInput" placeholder="ops@example.com" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Connected accounts</div>
+                  <div class="subtext">Link operator to owner and set service fee.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateConnected">Link accounts</button>
+                </div>
+              </div>
+              <div style="padding:16px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Operator Account ID</div>
+                    <input id="connectedOperatorInput" placeholder="1" type="number" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Owner Account ID</div>
+                    <input id="connectedOwnerInput" placeholder="2" type="number" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Service Fee %</div>
+                    <input id="connectedFeeInput" placeholder="0.10" type="number" step="0.01" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Accounts</div>
+                  <div class="subtext">All accounts in the system.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnAccountsRefresh">Refresh</button>
+                </div>
+              </div>
+              <div class="panel-header" style="border-bottom:0; padding-top:0;">
+                <div class="subtext" id="accountsMeta">Last updated: —</div>
+              </div>
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">ID</th>
+                      <th style="min-width: 240px;">Name</th>
+                      <th style="min-width: 140px;">Type</th>
+                      <th style="min-width: 220px;">Email</th>
+                      <th style="min-width: 220px;">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody id="accountsTbody">
+                    <tr><td colspan="5" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- LOCATIONS VIEW -->
+          <section id="viewLocations" style="display:none;">
+            <div class="section-title">Locations</div>
+            <div class="subtext">Create locations and assign tariffs/chargers.</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Create location</div>
+                  <div class="subtext">GPS coordinates required.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateLocation">Create location</button>
+                </div>
+              </div>
+              <div style="padding:16px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Account ID</div>
+                    <input id="locationAccountInput" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Name</div>
+                    <input id="locationNameInput" placeholder="Main Depot" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Address</div>
+                    <input id="locationAddressInput" placeholder="1 High Street, London" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Tariff ID</div>
+                    <input id="locationTariffInput" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Latitude</div>
+                    <input id="locationLatInput" placeholder="51.5074" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Longitude</div>
+                    <input id="locationLngInput" placeholder="-0.1278" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Locations</div>
+                  <div class="subtext">All locations with tariff.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnLocationsRefresh">Refresh</button>
+                </div>
+              </div>
+              <div class="panel-header" style="border-bottom:0; padding-top:0;">
+                <div class="subtext" id="locationsMeta">Last updated: —</div>
+              </div>
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">ID</th>
+                      <th style="min-width: 240px;">Name</th>
+                      <th style="min-width: 180px;">Account</th>
+                      <th style="min-width: 160px;">Tariff</th>
+                      <th style="min-width: 220px;">GPS</th>
+                    </tr>
+                  </thead>
+                  <tbody id="locationsTbody">
+                    <tr><td colspan="5" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- TARIFFS VIEW -->
+          <section id="viewTariffs" style="display:none;">
+            <div class="section-title">Tariffs</div>
+            <div class="subtext">Create pricing models for locations.</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Create tariff</div>
+                  <div class="subtext">Start fee + energy fee + idle fee.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateTariff">Create tariff</button>
+                </div>
+              </div>
+              <div style="padding:16px;">
+                <div style="display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Name</div>
+                    <input id="tariffNameInput" placeholder="Public tariff" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Start fee</div>
+                    <input id="tariffStartInput" type="number" step="0.01" placeholder="0.50" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Energy fee / kWh</div>
+                    <input id="tariffEnergyInput" type="number" step="0.01" placeholder="0.49" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Idle fee / h</div>
+                    <input id="tariffIdleInput" type="number" step="0.01" placeholder="2.00" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">VAT %</div>
+                    <input id="tariffVatInput" type="number" step="0.01" placeholder="0.20" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Tariffs</div>
+                  <div class="subtext">All pricing models.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnTariffsRefresh">Refresh</button>
+                </div>
+              </div>
+              <div class="panel-header" style="border-bottom:0; padding-top:0;">
+                <div class="subtext" id="tariffsMeta">Last updated: —</div>
+              </div>
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">ID</th>
+                      <th style="min-width: 220px;">Name</th>
+                      <th style="min-width: 140px;">Start</th>
+                      <th style="min-width: 140px;">Energy</th>
+                      <th style="min-width: 140px;">Idle</th>
+                      <th style="min-width: 140px;">VAT</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tariffsTbody">
+                    <tr><td colspan="6" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- QR VIEW -->
+          <section id="viewQr" style="display:none;">
+            <div class="section-title">QR Stickers</div>
+            <div class="subtext">Generate and attach QR codes to chargers.</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Create QR code</div>
+                  <div class="subtext">Link to location + charger.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateQr">Create QR</button>
+                </div>
+              </div>
+              <div style="padding:16px;">
+                <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Code</div>
+                    <input id="qrCodeInput" placeholder="QR-001" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Location ID</div>
+                    <input id="qrLocationInput" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Charger ID</div>
+                    <input id="qrChargerInput" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Connector</div>
+                    <input id="qrConnectorInput" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">QR codes</div>
+                  <div class="subtext">Active QR stickers.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnQrRefresh">Refresh</button>
+                </div>
+              </div>
+              <div class="panel-header" style="border-bottom:0; padding-top:0;">
+                <div class="subtext" id="qrMeta">Last updated: —</div>
+              </div>
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 100px;">Code</th>
+                      <th style="min-width: 200px;">Location</th>
+                      <th style="min-width: 160px;">Charger</th>
+                      <th style="min-width: 120px;">Connector</th>
+                    </tr>
+                  </thead>
+                  <tbody id="qrTbody">
+                    <tr><td colspan="4" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
           <!-- USERS VIEW -->
           <section id="viewUsers" style="display:none;">
             <div class="section-title">Users</div>
@@ -1216,6 +1550,10 @@
         navChargers: document.getElementById('navChargers'),
         navPricing: document.getElementById('navPricing'),
         navAnalytics: document.getElementById('navAnalytics'),
+        navAccounts: document.getElementById('navAccounts'),
+        navLocations: document.getElementById('navLocations'),
+        navTariffs: document.getElementById('navTariffs'),
+        navQr: document.getElementById('navQr'),
         navUsers: document.getElementById('navUsers'),
         navSignout: document.getElementById('navSignout'),
 
@@ -1223,6 +1561,10 @@
         viewChargers: document.getElementById('viewChargers'),
         viewPricing: document.getElementById('viewPricing'),
         viewAnalytics: document.getElementById('viewAnalytics'),
+        viewAccounts: document.getElementById('viewAccounts'),
+        viewLocations: document.getElementById('viewLocations'),
+        viewTariffs: document.getElementById('viewTariffs'),
+        viewQr: document.getElementById('viewQr'),
         viewUsers: document.getElementById('viewUsers'),
 
         // pricing
@@ -1268,6 +1610,52 @@
         analyticsMeta: document.getElementById('analyticsMeta'),
         analyticsEnergyChart: document.getElementById('analyticsEnergyChart'),
         analyticsSessionsChart: document.getElementById('analyticsSessionsChart'),
+
+        // accounts
+        btnCreateAccount: document.getElementById('btnCreateAccount'),
+        btnAccountsRefresh: document.getElementById('btnAccountsRefresh'),
+        accountsTbody: document.getElementById('accountsTbody'),
+        accountsMeta: document.getElementById('accountsMeta'),
+        accountNameInput: document.getElementById('accountNameInput'),
+        accountTypeInput: document.getElementById('accountTypeInput'),
+        accountEmailInput: document.getElementById('accountEmailInput'),
+        btnCreateConnected: document.getElementById('btnCreateConnected'),
+        connectedOperatorInput: document.getElementById('connectedOperatorInput'),
+        connectedOwnerInput: document.getElementById('connectedOwnerInput'),
+        connectedFeeInput: document.getElementById('connectedFeeInput'),
+
+        // locations
+        btnCreateLocation: document.getElementById('btnCreateLocation'),
+        btnLocationsRefresh: document.getElementById('btnLocationsRefresh'),
+        locationsTbody: document.getElementById('locationsTbody'),
+        locationsMeta: document.getElementById('locationsMeta'),
+        locationAccountInput: document.getElementById('locationAccountInput'),
+        locationNameInput: document.getElementById('locationNameInput'),
+        locationAddressInput: document.getElementById('locationAddressInput'),
+        locationTariffInput: document.getElementById('locationTariffInput'),
+        locationLatInput: document.getElementById('locationLatInput'),
+        locationLngInput: document.getElementById('locationLngInput'),
+
+        // tariffs
+        btnCreateTariff: document.getElementById('btnCreateTariff'),
+        btnTariffsRefresh: document.getElementById('btnTariffsRefresh'),
+        tariffsTbody: document.getElementById('tariffsTbody'),
+        tariffsMeta: document.getElementById('tariffsMeta'),
+        tariffNameInput: document.getElementById('tariffNameInput'),
+        tariffStartInput: document.getElementById('tariffStartInput'),
+        tariffEnergyInput: document.getElementById('tariffEnergyInput'),
+        tariffIdleInput: document.getElementById('tariffIdleInput'),
+        tariffVatInput: document.getElementById('tariffVatInput'),
+
+        // qr
+        btnCreateQr: document.getElementById('btnCreateQr'),
+        btnQrRefresh: document.getElementById('btnQrRefresh'),
+        qrTbody: document.getElementById('qrTbody'),
+        qrMeta: document.getElementById('qrMeta'),
+        qrCodeInput: document.getElementById('qrCodeInput'),
+        qrLocationInput: document.getElementById('qrLocationInput'),
+        qrChargerInput: document.getElementById('qrChargerInput'),
+        qrConnectorInput: document.getElementById('qrConnectorInput'),
 
         // users
         btnCreateUser: document.getElementById('btnCreateUser'),
@@ -1339,6 +1727,11 @@
       let analyticsEnergyChartInstance = null;
       let analyticsSessionsChartInstance = null;
 
+      let accountsCache = [];
+      let locationsCache = [];
+      let tariffsCache = [];
+      let qrCache = [];
+
       // users cache
       let usersCache = [];
 
@@ -1388,8 +1781,9 @@
 
       function updateRoleUi() {
         const showUsers = isSuperAdmin();
+        if (els.navAccounts) els.navAccounts.style.display = showUsers ? '' : 'none';
         if (els.navUsers) els.navUsers.style.display = showUsers ? '' : 'none';
-        if (!showUsers && getViewFromHash() === 'users') {
+        if (!showUsers && (getViewFromHash() === 'users' || getViewFromHash() === 'accounts')) {
           location.hash = '#dashboard';
         }
       }
@@ -1472,6 +1866,10 @@
         if (h.startsWith('chargers')) return 'chargers';
         if (h.startsWith('pricing')) return 'pricing';
         if (h.startsWith('analytics')) return 'analytics';
+        if (h.startsWith('accounts')) return 'accounts';
+        if (h.startsWith('locations')) return 'locations';
+        if (h.startsWith('tariffs')) return 'tariffs';
+        if (h.startsWith('qr')) return 'qr';
         if (h.startsWith('users')) return 'users';
         return 'dashboard';
       }
@@ -1481,12 +1879,20 @@
         els.navChargers.classList.toggle('active', view === 'chargers');
         els.navPricing.classList.toggle('active', view === 'pricing');
         els.navAnalytics.classList.toggle('active', view === 'analytics');
+        els.navAccounts.classList.toggle('active', view === 'accounts');
+        els.navLocations.classList.toggle('active', view === 'locations');
+        els.navTariffs.classList.toggle('active', view === 'tariffs');
+        els.navQr.classList.toggle('active', view === 'qr');
         els.navUsers.classList.toggle('active', view === 'users');
 
         els.viewDashboard.style.display = view === 'dashboard' ? '' : 'none';
         els.viewChargers.style.display = view === 'chargers' ? '' : 'none';
         els.viewPricing.style.display = view === 'pricing' ? '' : 'none';
         els.viewAnalytics.style.display = view === 'analytics' ? '' : 'none';
+        els.viewAccounts.style.display = view === 'accounts' ? '' : 'none';
+        els.viewLocations.style.display = view === 'locations' ? '' : 'none';
+        els.viewTariffs.style.display = view === 'tariffs' ? '' : 'none';
+        els.viewQr.style.display = view === 'qr' ? '' : 'none';
         els.viewUsers.style.display = view === 'users' ? '' : 'none';
       }
 
@@ -1946,6 +2352,254 @@
         renderAnalyticsCharts();
       }
 
+      function renderAccounts() {
+        if (!els.accountsTbody) return;
+        const items = Array.isArray(accountsCache) ? accountsCache : [];
+        if (!items.length) {
+          els.accountsTbody.innerHTML = `<tr><td colspan="5" style="color: rgba(226, 232, 240, 0.65);">No accounts found.</td></tr>`;
+          return;
+        }
+        els.accountsTbody.innerHTML = items.map(a => `
+          <tr>
+            <td style="font-weight:900;">${a.id}</td>
+            <td>${escapeHtml(a.name ?? '—')}</td>
+            <td>${escapeHtml(a.type ?? '—')}</td>
+            <td>${escapeHtml(a.email ?? '—')}</td>
+            <td>${fmtDate(a.createdAt)}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadAccounts() {
+        if (!isSuperAdmin()) {
+          toast('warn', 'Access denied', 'Super admin role required.');
+          return;
+        }
+        const data = await fetchJson(`${API_BASE}/admin/accounts`);
+        accountsCache = Array.isArray(data) ? data : [];
+        if (els.accountsMeta) els.accountsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        renderAccounts();
+      }
+
+      async function createAccount() {
+        if (!isSuperAdmin()) {
+          toast('warn', 'Access denied', 'Super admin role required.');
+          return;
+        }
+        const name = String(els.accountNameInput?.value || '').trim();
+        const type = String(els.accountTypeInput?.value || 'OWNER');
+        const email = String(els.accountEmailInput?.value || '').trim();
+        if (!name) {
+          toast('warn', 'Missing fields', 'Account name is required.');
+          return;
+        }
+        const res = await fetchJson(`${API_BASE}/admin/accounts`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ name, type, email }),
+        });
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+        if (els.accountNameInput) els.accountNameInput.value = '';
+        if (els.accountEmailInput) els.accountEmailInput.value = '';
+        toast('success', 'Account created', 'Account created.');
+        await loadAccounts();
+      }
+
+      async function createConnectedAccount() {
+        if (!isSuperAdmin()) {
+          toast('warn', 'Access denied', 'Super admin role required.');
+          return;
+        }
+        const operatorAccountId = Number(els.connectedOperatorInput?.value);
+        const ownerAccountId = Number(els.connectedOwnerInput?.value);
+        const serviceFeePercent = Number(els.connectedFeeInput?.value || 0);
+        if (!Number.isFinite(operatorAccountId) || !Number.isFinite(ownerAccountId)) {
+          toast('warn', 'Missing fields', 'Operator and owner account IDs are required.');
+          return;
+        }
+        const res = await fetchJson(`${API_BASE}/admin/connected-accounts`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ operatorAccountId, ownerAccountId, serviceFeePercent }),
+        });
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+        toast('success', 'Linked', 'Connected account created.');
+      }
+
+      function renderLocations() {
+        if (!els.locationsTbody) return;
+        const items = Array.isArray(locationsCache) ? locationsCache : [];
+        if (!items.length) {
+          els.locationsTbody.innerHTML = `<tr><td colspan="5" style="color: rgba(226, 232, 240, 0.65);">No locations found.</td></tr>`;
+          return;
+        }
+        els.locationsTbody.innerHTML = items.map(l => `
+          <tr>
+            <td style="font-weight:900;">${l.id}</td>
+            <td>${escapeHtml(l.name ?? '—')}</td>
+            <td>${escapeHtml(l.account?.name ?? l.accountId ?? '—')}</td>
+            <td>${escapeHtml(l.tariff?.name ?? '—')}</td>
+            <td>${l.latitude ?? '—'}, ${l.longitude ?? '—'}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadLocations() {
+        const data = await fetchJson(`${API_BASE}/admin/locations`);
+        locationsCache = Array.isArray(data) ? data : [];
+        if (els.locationsMeta) els.locationsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        renderLocations();
+      }
+
+      async function createLocation() {
+        const accountId = Number(els.locationAccountInput?.value);
+        const name = String(els.locationNameInput?.value || '').trim();
+        const address = String(els.locationAddressInput?.value || '').trim();
+        const tariffId = Number(els.locationTariffInput?.value || '');
+        const latitude = Number(els.locationLatInput?.value);
+        const longitude = Number(els.locationLngInput?.value);
+
+        if (!Number.isFinite(accountId) || !name || !address || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+          toast('warn', 'Missing fields', 'Account, name, address, latitude, longitude are required.');
+          return;
+        }
+
+        const res = await fetchJson(`${API_BASE}/admin/locations`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            accountId,
+            name,
+            address,
+            latitude,
+            longitude,
+            tariffId: Number.isFinite(tariffId) ? tariffId : undefined,
+          }),
+        });
+
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+
+        toast('success', 'Location created', 'Location created.');
+        await loadLocations();
+      }
+
+      function renderTariffs() {
+        if (!els.tariffsTbody) return;
+        const items = Array.isArray(tariffsCache) ? tariffsCache : [];
+        if (!items.length) {
+          els.tariffsTbody.innerHTML = `<tr><td colspan="6" style="color: rgba(226, 232, 240, 0.65);">No tariffs found.</td></tr>`;
+          return;
+        }
+        els.tariffsTbody.innerHTML = items.map(t => `
+          <tr>
+            <td style="font-weight:900;">${t.id}</td>
+            <td>${escapeHtml(t.name ?? '—')}</td>
+            <td>${t.startFee ?? '—'}</td>
+            <td>${t.energyFee ?? '—'}</td>
+            <td>${t.idleFee ?? '—'}</td>
+            <td>${t.vatRate ?? '—'}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadTariffs() {
+        const data = await fetchJson(`${API_BASE}/admin/tariffs`);
+        tariffsCache = Array.isArray(data) ? data : [];
+        if (els.tariffsMeta) els.tariffsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        renderTariffs();
+      }
+
+      async function createTariff() {
+        const name = String(els.tariffNameInput?.value || '').trim();
+        const startFee = Number(els.tariffStartInput?.value);
+        const energyFee = Number(els.tariffEnergyInput?.value);
+        const idleFee = Number(els.tariffIdleInput?.value);
+        const vatRate = Number(els.tariffVatInput?.value || 0);
+
+        if (!name || ![startFee, energyFee, idleFee].every(Number.isFinite)) {
+          toast('warn', 'Missing fields', 'Name, start fee, energy fee, and idle fee are required.');
+          return;
+        }
+
+        const res = await fetchJson(`${API_BASE}/admin/tariffs`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ name, startFee, energyFee, idleFee, vatRate }),
+        });
+
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+
+        toast('success', 'Tariff created', 'Tariff created.');
+        await loadTariffs();
+      }
+
+      function renderQr() {
+        if (!els.qrTbody) return;
+        const items = Array.isArray(qrCache) ? qrCache : [];
+        if (!items.length) {
+          els.qrTbody.innerHTML = `<tr><td colspan="4" style="color: rgba(226, 232, 240, 0.65);">No QR codes found.</td></tr>`;
+          return;
+        }
+        els.qrTbody.innerHTML = items.map(q => `
+          <tr>
+            <td style="font-weight:900;">${escapeHtml(q.code ?? '—')}</td>
+            <td>${escapeHtml(q.location?.name ?? q.locationId ?? '—')}</td>
+            <td>${escapeHtml(q.charger?.chargerId ?? '—')}</td>
+            <td>${q.connectorId ?? '—'}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadQr() {
+        const data = await fetchJson(`${API_BASE}/admin/qr-codes`);
+        qrCache = Array.isArray(data) ? data : [];
+        if (els.qrMeta) els.qrMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        renderQr();
+      }
+
+      async function createQr() {
+        const code = String(els.qrCodeInput?.value || '').trim();
+        const locationId = Number(els.qrLocationInput?.value);
+        const chargerId = Number(els.qrChargerInput?.value || '');
+        const connectorId = Number(els.qrConnectorInput?.value || '');
+
+        if (!code || !Number.isFinite(locationId)) {
+          toast('warn', 'Missing fields', 'Code and location ID are required.');
+          return;
+        }
+
+        const res = await fetchJson(`${API_BASE}/admin/qr-codes`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            code,
+            locationId,
+            chargerId: Number.isFinite(chargerId) ? chargerId : undefined,
+            connectorId: Number.isFinite(connectorId) ? connectorId : undefined,
+          }),
+        });
+
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+
+        toast('success', 'QR created', 'QR code created.');
+        await loadQr();
+      }
+
       function renderUsers() {
         if (!els.usersTbody) return;
         const items = Array.isArray(usersCache) ? usersCache : [];
@@ -2190,6 +2844,18 @@
         if (view === 'analytics') {
           loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
         }
+        if (view === 'accounts') {
+          loadAccounts().catch(err => toast('error', 'Accounts failed', String(err?.message || err)));
+        }
+        if (view === 'locations') {
+          loadLocations().catch(err => toast('error', 'Locations failed', String(err?.message || err)));
+        }
+        if (view === 'tariffs') {
+          loadTariffs().catch(err => toast('error', 'Tariffs failed', String(err?.message || err)));
+        }
+        if (view === 'qr') {
+          loadQr().catch(err => toast('error', 'QR failed', String(err?.message || err)));
+        }
         if (view === 'users') {
           loadUsers().catch(err => toast('error', 'Users failed', String(err?.message || err)));
         }
@@ -2268,6 +2934,42 @@
 
       els.btnAnalyticsRefresh?.addEventListener('click', () => {
         loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
+      });
+
+      els.btnAccountsRefresh?.addEventListener('click', () => {
+        loadAccounts().catch(err => toast('error', 'Accounts failed', String(err?.message || err)));
+      });
+
+      els.btnCreateAccount?.addEventListener('click', () => {
+        createAccount().catch(err => toast('error', 'Create account failed', String(err?.message || err)));
+      });
+
+      els.btnCreateConnected?.addEventListener('click', () => {
+        createConnectedAccount().catch(err => toast('error', 'Link accounts failed', String(err?.message || err)));
+      });
+
+      els.btnLocationsRefresh?.addEventListener('click', () => {
+        loadLocations().catch(err => toast('error', 'Locations failed', String(err?.message || err)));
+      });
+
+      els.btnCreateLocation?.addEventListener('click', () => {
+        createLocation().catch(err => toast('error', 'Create location failed', String(err?.message || err)));
+      });
+
+      els.btnTariffsRefresh?.addEventListener('click', () => {
+        loadTariffs().catch(err => toast('error', 'Tariffs failed', String(err?.message || err)));
+      });
+
+      els.btnCreateTariff?.addEventListener('click', () => {
+        createTariff().catch(err => toast('error', 'Create tariff failed', String(err?.message || err)));
+      });
+
+      els.btnQrRefresh?.addEventListener('click', () => {
+        loadQr().catch(err => toast('error', 'QR failed', String(err?.message || err)));
+      });
+
+      els.btnCreateQr?.addEventListener('click', () => {
+        createQr().catch(err => toast('error', 'Create QR failed', String(err?.message || err)));
       });
 
       els.btnUsersRefresh?.addEventListener('click', () => {
@@ -2415,6 +3117,14 @@
             await loadPricing();
           } else if (view === 'analytics') {
             await loadAnalytics('30d');
+          } else if (view === 'accounts') {
+            await loadAccounts();
+          } else if (view === 'locations') {
+            await loadLocations();
+          } else if (view === 'tariffs') {
+            await loadTariffs();
+          } else if (view === 'qr') {
+            await loadQr();
           } else if (view === 'users') {
             await loadUsers();
           } else {

@@ -6,6 +6,7 @@ import { APP_GUARD } from '@nestjs/core';
 import Joi from 'joi';
 
 import { AppController } from './app.controller';
+import { PublicController } from './modules/public/public.controller';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { OcppModule } from './modules/ocpp/ocpp.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -57,6 +58,7 @@ import { PrismaModule } from './prisma/prisma.module';
   ],
   controllers: [
     AppController,
+    PublicController,
   ],
   providers: [
     {

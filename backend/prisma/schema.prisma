@@ -6,12 +6,62 @@ datasource db {
   provider = "postgresql"
 }
 
-model Site {
-  id        Int       @id @default(autoincrement())
-  name      String
-  address   String
-  chargers  Charger[]
-  createdAt DateTime  @default(now())
+model Account {
+  id            Int       @id @default(autoincrement())
+  name          String
+  type          AccountType @default(OWNER)
+  email         String?
+  vatNumber     String?
+  invoiceEmail  String?
+  alertEmail    String?
+  bankName      String?
+  bankIban      String?
+  bankBic       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  admins        AdminUser[]
+  locations     Location[]
+  drivers       Driver[]
+  operatorConnections ConnectedAccount[] @relation("OperatorAccount")
+  ownerConnections    ConnectedAccount[] @relation("OwnerAccount")
+  operatorLocations   Location[] @relation("OperatorAccountLocations")
+  driverGroups        DriverGroup[]
+}
+
+model ConnectedAccount {
+  id                Int      @id @default(autoincrement())
+  operatorAccountId Int
+  ownerAccountId    Int
+  serviceFeePercent Decimal  @db.Decimal(5, 4)
+  createdAt         DateTime @default(now())
+
+  operatorAccount   Account  @relation("OperatorAccount", fields: [operatorAccountId], references: [id])
+  ownerAccount      Account  @relation("OwnerAccount", fields: [ownerAccountId], references: [id])
+
+  @@unique([operatorAccountId, ownerAccountId])
+}
+
+model Location {
+  id              Int       @id @default(autoincrement())
+  accountId       Int
+  operatorAccountId Int?
+  name            String
+  address         String
+  latitude        Decimal   @db.Decimal(9, 6)
+  longitude       Decimal   @db.Decimal(9, 6)
+  access          LocationAccess @default(PUBLIC)
+  visibility      LocationVisibility @default(LISTED)
+  tariffId        Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  account         Account   @relation(fields: [accountId], references: [id])
+  operatorAccount Account?  @relation("OperatorAccountLocations", fields: [operatorAccountId], references: [id])
+  tariff          Tariff?   @relation(fields: [tariffId], references: [id])
+  chargers        Charger[]
+  qrCodes         QrCode[]
+  transactions    Transaction[]
 }
 
 model Charger {
@@ -21,13 +71,14 @@ model Charger {
   registered   Boolean   @default(false)
   lastSeenAt   DateTime?
 
-  siteId       Int?
-  site         Site?     @relation(fields: [siteId], references: [id])
+  locationId   Int?
+  location     Location? @relation(fields: [locationId], references: [id])
 
   transactions Transaction[]
 
   connectors   ConnectorStatus[]
   ocppMessages OcppMessageLog[]
+  qrCodes      QrCode[]
 
   createdAt    DateTime  @default(now())
 }
@@ -89,6 +140,19 @@ model Transaction {
   startedAt          DateTime  @default(now())
   stoppedAt          DateTime?
   stopReason         String?
+
+  locationId         Int?
+  location           Location? @relation(fields: [locationId], references: [id])
+  driverId           Int?
+  driver             Driver?   @relation(fields: [driverId], references: [id])
+  driverGroupId      Int?
+  driverGroup        DriverGroup? @relation(fields: [driverGroupId], references: [id])
+
+  startFee           Decimal?  @db.Decimal(10, 4)
+  energyFee          Decimal?  @db.Decimal(10, 4)
+  idleFee            Decimal?  @db.Decimal(10, 4)
+  vatRate            Decimal?  @db.Decimal(5, 4)
+  currency           String?
 }
 
 model AdminUser {
@@ -97,6 +161,9 @@ model AdminUser {
   passwordHash String
   role         AdminRole @default(ADMIN)
   createdAt    DateTime @default(now())
+
+  accountId    Int?
+  account      Account? @relation(fields: [accountId], references: [id])
 }
 
 enum AdminRole {
@@ -120,10 +187,14 @@ model Driver {
   id        Int       @id @default(autoincrement())
   name      String
   email     String?   @unique
+  accountId Int?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
   fobs      RfidFob[]
+  account   Account?  @relation(fields: [accountId], references: [id])
+  groups    DriverGroupMember[]
+  transactions Transaction[]
 }
 
 model RfidFob {
@@ -139,4 +210,87 @@ model RfidFob {
 
   @@index([driverId])
   @@index([active])
+}
+
+model DriverGroup {
+  id          Int      @id @default(autoincrement())
+  accountId   Int
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  account     Account  @relation(fields: [accountId], references: [id])
+  members     DriverGroupMember[]
+  tariffs     DriverGroupTariff[]
+  transactions Transaction[]
+
+  @@unique([accountId, name])
+}
+
+model DriverGroupMember {
+  id           Int     @id @default(autoincrement())
+  driverId     Int
+  driverGroupId Int
+
+  driver       Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverGroup  DriverGroup @relation(fields: [driverGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([driverId, driverGroupId])
+  @@index([driverGroupId])
+}
+
+model Tariff {
+  id        Int      @id @default(autoincrement())
+  name      String
+  startFee  Decimal  @db.Decimal(10, 4)
+  energyFee Decimal  @db.Decimal(10, 4)
+  idleFee   Decimal  @db.Decimal(10, 4)
+  vatRate   Decimal  @db.Decimal(5, 4)
+  currency  String   @default("GBP")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  locations Location[]
+  driverGroupTariffs DriverGroupTariff[]
+}
+
+model DriverGroupTariff {
+  id           Int     @id @default(autoincrement())
+  driverGroupId Int
+  tariffId     Int
+
+  driverGroup  DriverGroup @relation(fields: [driverGroupId], references: [id], onDelete: Cascade)
+  tariff       Tariff      @relation(fields: [tariffId], references: [id], onDelete: Cascade)
+
+  @@unique([driverGroupId, tariffId])
+}
+
+model QrCode {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  active      Boolean  @default(true)
+  locationId  Int
+  chargerId   Int?
+  connectorId Int?
+  createdAt   DateTime @default(now())
+
+  location    Location @relation(fields: [locationId], references: [id])
+  charger     Charger? @relation(fields: [chargerId], references: [id])
+}
+
+enum AccountType {
+  OWNER
+  OPERATOR
+}
+
+enum LocationAccess {
+  PUBLIC
+  PRIVATE
+  RESTRICTED
+}
+
+enum LocationVisibility {
+  LISTED
+  UNLISTED
 }

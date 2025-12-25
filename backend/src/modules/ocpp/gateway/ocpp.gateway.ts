@@ -11,6 +11,7 @@ import { IncomingMessage } from 'http';
 import { resolveOcppProtocol } from './ocpp-protocol.resolver';
 import { routeOcppMessage } from './ocpp-message.router';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { OcppConnectionRegistry } from '../ocpp.registry';
 import { OcppProtocolVersion } from '../types/protocol-version';
 
 @WebSocketGateway({
@@ -25,6 +26,7 @@ export class OcppGateway
   constructor(
     private readonly logger: Logger,
     private readonly prisma: PrismaService,
+    private readonly registry: OcppConnectionRegistry,
   ) {}
 
   handleConnection(client: WebSocket, request: IncomingMessage) {
@@ -60,6 +62,7 @@ export class OcppGateway
     }
 
     (client as any).ocpp = { chargerId, protocol };
+    this.registry.register(chargerId, client);
 
     this.logger.log(
       { chargerId, protocol },
@@ -87,5 +90,7 @@ export class OcppGateway
       { chargerId: meta?.chargerId },
       'OCPP charger disconnected',
     );
+
+    if (meta?.chargerId) this.registry.unregister(meta.chargerId);
   }
 }

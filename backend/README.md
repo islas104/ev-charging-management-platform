@@ -210,6 +210,34 @@ Admin users (super admin only):
 - GET /admin/users
 - POST /admin/users
 
+# Location Onboarding (Tap-like)
+
+Accounts (super admin only):
+- GET /admin/accounts
+- POST /admin/accounts
+
+Connected accounts (super admin only):
+- GET /admin/connected-accounts
+- POST /admin/connected-accounts
+
+Locations:
+- GET /admin/locations
+- POST /admin/locations
+- PUT /admin/locations/:id
+- POST /admin/chargers/:chargerId/assign-location
+
+Tariffs:
+- GET /admin/tariffs
+- POST /admin/tariffs
+
+QR codes:
+- GET /admin/qr-codes
+- POST /admin/qr-codes
+
+Public QR start:
+- GET /public/qr/:code
+- POST /public/qr/:code/start
+
 # Design Principles
 
 - Protocol correctness first
