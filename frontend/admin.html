@@ -667,6 +667,10 @@
             <span class="left"><span class="icon">£</span>Pricing</span>
             <span class="badge">Global</span>
           </a>
+          <a href="#analytics" id="navAnalytics">
+            <span class="left"><span class="icon">A</span>Analytics</span>
+            <span class="badge">Drivers</span>
+          </a>
 
           <small>Account</small>
           <a href="#signout" id="navSignout">
@@ -876,6 +880,70 @@
               </div>
             </div>
           </section>
+
+          <!-- ANALYTICS VIEW -->
+          <section id="viewAnalytics" style="display:none;">
+            <div class="section-title">Analytics</div>
+            <div class="subtext">Driver charging activity and energy delivered.</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Driver energy distribution</div>
+                  <div class="subtext">Top 10 drivers by kWh</div>
+                </div>
+              </div>
+
+              <div class="split">
+                <div>
+                  <div class="subtext" style="margin-bottom:8px;">Energy by driver (kWh)</div>
+                  <div class="chart-box">
+                    <canvas id="analyticsEnergyChart"></canvas>
+                  </div>
+                </div>
+                <div>
+                  <div class="subtext" style="margin-bottom:8px;">Sessions by driver</div>
+                  <div class="chart-box">
+                    <canvas id="analyticsSessionsChart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Top drivers by energy</div>
+                  <div class="subtext">Last 30 days (kWh)</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnAnalyticsRefresh">Refresh analytics</button>
+                </div>
+              </div>
+
+              <div class="panel-header" style="border-bottom: 0; padding-top: 0;">
+                <div class="subtext" id="analyticsMeta">Last updated: —</div>
+              </div>
+
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">Rank</th>
+                      <th style="min-width: 240px;">Driver</th>
+                      <th style="min-width: 200px;">RFID</th>
+                      <th style="min-width: 160px;">Sessions</th>
+                      <th style="min-width: 180px;">Energy (kWh)</th>
+                      <th style="min-width: 220px;">Last session</th>
+                    </tr>
+                  </thead>
+                  <tbody id="analyticsTbody">
+                    <tr><td colspan="6" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
         </main>
       </div>
     </div>
@@ -971,10 +1039,12 @@
         navDashboard: document.getElementById('navDashboard'),
         navChargers: document.getElementById('navChargers'),
         navPricing: document.getElementById('navPricing'),
+        navAnalytics: document.getElementById('navAnalytics'),
 
         viewDashboard: document.getElementById('viewDashboard'),
         viewChargers: document.getElementById('viewChargers'),
         viewPricing: document.getElementById('viewPricing'),
+        viewAnalytics: document.getElementById('viewAnalytics'),
 
         // pricing
         btnPricingSave: document.getElementById('btnPricingSave'),
@@ -1012,6 +1082,13 @@
         revDailyChart: document.getElementById('revDailyChart'),
         revByLocationChart: document.getElementById('revByLocationChart'),
         revUpdated: document.getElementById('revUpdated'),
+
+        // analytics
+        btnAnalyticsRefresh: document.getElementById('btnAnalyticsRefresh'),
+        analyticsTbody: document.getElementById('analyticsTbody'),
+        analyticsMeta: document.getElementById('analyticsMeta'),
+        analyticsEnergyChart: document.getElementById('analyticsEnergyChart'),
+        analyticsSessionsChart: document.getElementById('analyticsSessionsChart'),
 
         // modal
         messagesBackdrop: document.getElementById('messagesBackdrop'),
@@ -1060,6 +1137,11 @@
       let messagesPollTimer = null;
       let connectivityFilter = 'all'; // all | online | offline
       let overviewTimer = null;
+
+      // analytics cache
+      let analyticsCache = null;
+      let analyticsEnergyChartInstance = null;
+      let analyticsSessionsChartInstance = null;
 
       function toast(type, title, message, timeoutMs = 2600) {
         const wrap = els.toastWrap;
@@ -1138,6 +1220,7 @@
         const h = (location.hash || '#dashboard').replace('#', '').trim();
         if (h.startsWith('chargers')) return 'chargers';
         if (h.startsWith('pricing')) return 'pricing';
+        if (h.startsWith('analytics')) return 'analytics';
         return 'dashboard';
       }
 
@@ -1145,10 +1228,12 @@
         els.navDashboard.classList.toggle('active', view === 'dashboard');
         els.navChargers.classList.toggle('active', view === 'chargers');
         els.navPricing.classList.toggle('active', view === 'pricing');
+        els.navAnalytics.classList.toggle('active', view === 'analytics');
 
         els.viewDashboard.style.display = view === 'dashboard' ? '' : 'none';
         els.viewChargers.style.display = view === 'chargers' ? '' : 'none';
         els.viewPricing.style.display = view === 'pricing' ? '' : 'none';
+        els.viewAnalytics.style.display = view === 'analytics' ? '' : 'none';
       }
 
       function statusToDotClass(status) {
@@ -1471,6 +1556,129 @@
         toast('success', 'Saved', 'Pricing updated.');
       }
 
+      function renderAnalytics() {
+        if (!els.analyticsTbody) return;
+        const items = Array.isArray(analyticsCache?.items) ? analyticsCache.items : [];
+
+        if (!items.length) {
+          els.analyticsTbody.innerHTML = `<tr><td colspan="6" style="color: rgba(226, 232, 240, 0.65);">No driver data yet.</td></tr>`;
+          return;
+        }
+
+        els.analyticsTbody.innerHTML = items.map((it, idx) => {
+          const energy = Number(it.energyKwh ?? 0);
+          const sessions = Number(it.sessions ?? 0);
+          return `
+            <tr>
+              <td style="font-weight:980;">#${idx + 1}</td>
+              <td style="font-weight:950;">${escapeHtml(it.driverName ?? 'Unassigned')}</td>
+              <td>${escapeHtml(it.idTag ?? '—')}</td>
+              <td>${Number.isFinite(sessions) ? sessions : '—'}</td>
+              <td>${Number.isFinite(energy) ? energy.toFixed(2) : '—'}</td>
+              <td>${fmtDate(it.lastSessionAt)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function destroyChart(ch) {
+        try { ch?.destroy?.(); } catch { /* ignore */ }
+      }
+
+      function renderAnalyticsCharts() {
+        if (!analyticsCache) return;
+        if (typeof Chart === 'undefined') return;
+
+        const items = Array.isArray(analyticsCache.items) ? analyticsCache.items : [];
+        const top = items.slice(0, 10);
+
+        const labels = top.map(x => String(x.driverName ?? x.idTag ?? '—'));
+        const energy = top.map(x => Number(x.energyKwh ?? 0));
+        const sessions = top.map(x => Number(x.sessions ?? 0));
+
+        if (els.analyticsEnergyChart) {
+          destroyChart(analyticsEnergyChartInstance);
+          analyticsEnergyChartInstance = new Chart(els.analyticsEnergyChart, {
+            type: 'bar',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Energy (kWh)',
+                data: energy,
+                backgroundColor: 'rgba(124, 58, 237, 0.75)',
+                borderColor: 'rgba(124, 58, 237, 1)',
+                borderWidth: 1,
+                borderRadius: 8,
+              }],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: (ctx) => ` ${Number(ctx.parsed.y || 0).toFixed(2)} kWh`,
+                  },
+                },
+              },
+              scales: {
+                y: {
+                  ticks: { callback: (v) => `${Number(v).toFixed(0)} kWh` },
+                  grid: { color: 'rgba(148, 163, 184, 0.22)' },
+                },
+                x: { grid: { display: false } },
+              },
+            },
+          });
+        }
+
+        if (els.analyticsSessionsChart) {
+          destroyChart(analyticsSessionsChartInstance);
+          analyticsSessionsChartInstance = new Chart(els.analyticsSessionsChart, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Sessions',
+                data: sessions,
+                borderColor: '#22c55e',
+                backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                fill: true,
+                tension: 0.25,
+                pointRadius: 2,
+              }],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+              },
+              scales: {
+                y: {
+                  ticks: { callback: (v) => `${v}` },
+                  grid: { color: 'rgba(148, 163, 184, 0.22)' },
+                },
+                x: { grid: { display: false } },
+              },
+            },
+          });
+        }
+      }
+
+      async function loadAnalytics(range = '30d') {
+        const data = await fetchJson(
+          `${API_BASE}/admin/analytics/top-drivers?range=${encodeURIComponent(range)}&meterUnit=wh`,
+        );
+        analyticsCache = data;
+        if (els.analyticsMeta) {
+          els.analyticsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        }
+        renderAnalytics();
+        renderAnalyticsCharts();
+      }
+
       function openMessagesModal(chargerId) {
         selectedCharger = chargerId;
         selectedMsgId = null;
@@ -1646,6 +1854,9 @@
         if (view === 'pricing') {
           loadPricing().catch(err => toast('error', 'Pricing failed', String(err?.message || err)));
         }
+        if (view === 'analytics') {
+          loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
+        }
       });
 
       els.globalSearch.addEventListener('input', () => {
@@ -1673,6 +1884,10 @@
 
       els.btnPricingSave?.addEventListener('click', () => {
         savePricing().catch(err => toast('error', 'Save failed', String(err?.message || err)));
+      });
+
+      els.btnAnalyticsRefresh?.addEventListener('click', () => {
+        loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
       });
 
       // manual revenue refresh (also re-enables endpoint attempts)
@@ -1799,6 +2014,8 @@
           const view = getViewFromHash();
           if (view === 'pricing') {
             await loadPricing();
+          } else if (view === 'analytics') {
+            await loadAnalytics('30d');
           } else {
             await refreshOverviewAndChargers();
             startOverviewPoll();

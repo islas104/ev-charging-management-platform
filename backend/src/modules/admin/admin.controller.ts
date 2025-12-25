@@ -391,6 +391,90 @@ export class AdminController {
   }
 
   /**
+   * Analytics: top drivers by energy delivered.
+   * GET /admin/analytics/top-drivers?range=30d&meterUnit=wh
+   */
+  @Get('analytics/top-drivers')
+  async getTopDrivers(
+    @Query('range') range?: string,
+    @Query('meterUnit') meterUnit?: string,
+  ) {
+    const days = parseRangeDays(range ?? '30d');
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const unit = (meterUnit ?? 'wh').trim().toLowerCase() === 'kwh' ? 'kwh' : 'wh';
+    const divisor = unit === 'kwh' ? 1 : 1000;
+
+    const txs = await this.prisma.transaction.findMany({
+      where: {
+        startedAt: { gte: since },
+        meterStop: { not: null },
+      },
+      select: {
+        idTag: true,
+        meterStart: true,
+        meterStop: true,
+        startedAt: true,
+      },
+      orderBy: { startedAt: 'asc' },
+    });
+
+    const byTag = new Map<string, { sessions: number; kwh: number; lastSeen: Date }>();
+    for (const t of txs) {
+      const tag = String(t.idTag ?? '').trim();
+      if (!tag) continue;
+
+      const ms = Number(t.meterStart);
+      const me = Number(t.meterStop);
+      if (!Number.isFinite(ms) || !Number.isFinite(me)) continue;
+
+      const kwh = (me - ms) / divisor;
+      if (!Number.isFinite(kwh) || kwh <= 0) continue;
+
+      const cur = byTag.get(tag) ?? { sessions: 0, kwh: 0, lastSeen: t.startedAt };
+      cur.sessions += 1;
+      cur.kwh += kwh;
+      if (t.startedAt > cur.lastSeen) cur.lastSeen = t.startedAt;
+      byTag.set(tag, cur);
+    }
+
+    const tags = [...byTag.keys()];
+    const fobs = tags.length
+      ? await this.prisma.rfidFob.findMany({
+          where: { uid: { in: tags } },
+          include: { driver: true },
+        })
+      : [];
+
+    const fobByUid = new Map<string, typeof fobs[number]>();
+    for (const f of fobs) fobByUid.set(f.uid, f);
+
+    const items = tags.map(tag => {
+      const agg = byTag.get(tag)!;
+      const fob = fobByUid.get(tag);
+      const driverName = fob?.driver?.name ?? fob?.label ?? tag;
+
+      return {
+        idTag: tag,
+        driverName,
+        driverId: fob?.driver?.id ?? null,
+        sessions: agg.sessions,
+        energyKwh: round4(agg.kwh),
+        lastSessionAt: agg.lastSeen,
+      };
+    });
+
+    items.sort((a, b) => b.energyKwh - a.energyKwh);
+
+    return {
+      range: `${days}d`,
+      meterUnit: unit,
+      totalDrivers: items.length,
+      items,
+    };
+  }
+
+  /**
    * For the "Filter by OCPP Operation" UI (unique list of operations)
    */
   @Get('ocpp/operations')
