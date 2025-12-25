@@ -1,7 +1,16 @@
-import { Body, Controller, Get, Param, Put, Query, Post, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Query, Post, Patch, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AdminApiKeyGuard } from '../../common/guards/admin-api-key.guard';
+import {
+  AssignFobDto,
+  CreateDriverDto,
+  CreateFobDto,
+  UpdateFobDto,
+  UpdatePricingDto,
+} from './dto/admin.dto';
 
+@UseGuards(AdminApiKeyGuard)
 @Controller('admin')
 export class AdminController {
   constructor(private readonly prisma: PrismaService) {}
@@ -88,10 +97,7 @@ export class AdminController {
   @Put('pricing')
   async updatePricing(
     @Body()
-    body: {
-      baseEnergyGbpKwh: number;
-      platformMarkup?: number;
-    },
+    body: UpdatePricingDto,
   ) {
     const baseEnergy = Number(body.baseEnergyGbpKwh);
     if (!Number.isFinite(baseEnergy) || baseEnergy < 0) {
@@ -556,7 +562,7 @@ export class AdminController {
   }
 
   @Post('drivers')
-  async createDriver(@Body() body: { name: string; email?: string | null }) {
+  async createDriver(@Body() body: CreateDriverDto) {
     const name = String(body.name ?? '').trim();
     if (!name) return { ok: false, error: 'name is required' };
 
@@ -582,9 +588,7 @@ export class AdminController {
   }
 
   @Post('rfid-fobs')
-  async createFob(
-    @Body() body: { uid: string; label?: string; driverId?: number },
-  ) {
+  async createFob(@Body() body: CreateFobDto) {
     const uid = String(body.uid ?? '').trim();
     if (!uid) return { ok: false, error: 'uid is required' };
 
@@ -607,13 +611,17 @@ export class AdminController {
   @Put('rfid-fobs/:id/assign')
   async assignFob(
     @Param('id') id: string,
-    @Body() body: { driverId: number | null },
+    @Body() body: AssignFobDto,
   ) {
     const fobId = Number(id);
     if (!Number.isFinite(fobId)) return { ok: false, error: 'invalid fob id' };
 
     const driverId =
-      body.driverId === null ? null : Number(body.driverId);
+      body.driverId === null
+        ? null
+        : body.driverId === undefined
+        ? undefined
+        : Number(body.driverId);
 
     const fob = await this.prisma.rfidFob.update({
       where: { id: fobId },
@@ -629,7 +637,7 @@ export class AdminController {
   @Patch('rfid-fobs/:id')
   async updateFob(
     @Param('id') id: string,
-    @Body() body: { label?: string | null; active?: boolean },
+    @Body() body: UpdateFobDto,
   ) {
     const fobId = Number(id);
     if (!Number.isFinite(fobId)) return { ok: false, error: 'invalid fob id' };

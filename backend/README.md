@@ -78,6 +78,7 @@ Each action:
 
 
 ws://localhost:3000/ocpp?chargerId={CHARGER_ID}
+ws://localhost:3000/ocpp?chargerId={CHARGER_ID}&token={OCPP_SHARED_SECRET}
 
 
 ### Protocol Negotiation
@@ -155,13 +156,17 @@ Response example:
   }
 ]
 ```
-APIs are intentionally unauthenticated for MVP/demo purposes.
+APIs are intentionally unauthenticated for MVP/demo purposes. For production, set `ADMIN_API_KEY`.
 
 # Environment Configuration
 
 .env.example
 PORT=3000
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ev_charging
+ADMIN_API_KEY=your_admin_key
+OCPP_SHARED_SECRET=your_charger_secret
+THROTTLE_TTL=60
+THROTTLE_LIMIT=120
 
 # Running Locally
 
@@ -177,6 +182,9 @@ http://localhost:3000
 
 ## Health check:
 GET /health
+
+## Readiness check:
+GET /ready
 
 # Design Principles
 

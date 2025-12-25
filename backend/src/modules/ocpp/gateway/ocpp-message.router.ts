@@ -21,7 +21,17 @@ type StatusNotificationRequest = {
   vendorErrorCode?: string;
 };
 
-let transactionCounter = 1000;
+const MAX_MESSAGE_BYTES = Number(process.env.OCPP_MAX_MESSAGE_BYTES ?? 1000000);
+
+function sendCallError(
+  socket: WebSocket,
+  messageId: string,
+  errorCode: string,
+  errorDescription: string,
+) {
+  const payload = [OcppMessageType.CALL_ERROR, messageId, errorCode, errorDescription, {}];
+  socket.send(JSON.stringify(payload));
+}
 
 export async function routeOcppMessage(
   socket: WebSocket,
@@ -31,6 +41,11 @@ export async function routeOcppMessage(
 ) {
   let message: any;
 
+  if (Buffer.byteLength(rawMessage, 'utf8') > MAX_MESSAGE_BYTES) {
+    logger.warn('OCPP message rejected: payload too large');
+    return;
+  }
+
   try {
     message = JSON.parse(rawMessage);
   } catch {
@@ -38,10 +53,35 @@ export async function routeOcppMessage(
     return;
   }
 
+  if (!Array.isArray(message) || message.length < 3) {
+    logger.warn('Invalid OCPP frame');
+    return;
+  }
+
   const [messageType, messageId, action, payload] = message;
   if (messageType !== OcppMessageType.CALL) return;
 
   const { chargerId } = (socket as any).ocpp;
+  const msgId = String(messageId ?? '');
+  const actionName = String(action ?? '');
+
+  if (!msgId || !actionName) {
+    sendCallError(socket, msgId || '0', 'FormationViolation', 'Missing messageId/action');
+    return;
+  }
+
+  const allowedActions = new Set([
+    'Heartbeat',
+    'BootNotification',
+    'StartTransaction',
+    'StopTransaction',
+    'StatusNotification',
+  ]);
+
+  if (!allowedActions.has(actionName)) {
+    sendCallError(socket, msgId, 'NotSupported', `Unsupported action: ${actionName}`);
+    return;
+  }
 
   // Ensure charger exists so we can persist logs + statuses
   const chargerRow = await prisma.charger.upsert({
@@ -56,19 +96,31 @@ export async function routeOcppMessage(
     select: { id: true, chargerId: true },
   });
 
+  const existing = await prisma.ocppMessageLog.findFirst({
+    where: {
+      chargerId: chargerRow.id,
+      messageId: msgId,
+      direction: 'IN',
+    },
+  });
+  if (existing) {
+    logger.warn({ chargerId, msgId }, 'Duplicate OCPP message ignored');
+    return;
+  }
+
   // Log incoming OCPP request
   await prisma.ocppMessageLog.create({
     data: {
       chargerId: chargerRow.id,
       direction: 'IN',
-      operation: String(action),
-      messageId: String(messageId),
+      operation: actionName,
+      messageId: msgId,
       raw: (payload ?? {}) as Prisma.InputJsonValue,
     },
   });
 
   /* ---------- Heartbeat ---------- */
-  if (action === 'Heartbeat') {
+  if (actionName === 'Heartbeat') {
     await prisma.charger.update({
       where: { chargerId },
       data: { lastSeenAt: new Date() },
@@ -78,9 +130,7 @@ export async function routeOcppMessage(
       currentTime: new Date().toISOString(),
     };
 
-    socket.send(
-      JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
-    );
+    socket.send(JSON.stringify([OcppMessageType.CALL_RESULT, msgId, response]));
 
     // Log outgoing response
     await prisma.ocppMessageLog.create({
@@ -88,17 +138,22 @@ export async function routeOcppMessage(
         chargerId: chargerRow.id,
         direction: 'OUT',
         operation: 'Heartbeat',
-        messageId: String(messageId),
-        raw: response as unknown as Prisma.InputJsonValue,
-      },
-    });
+      messageId: msgId,
+      raw: response as unknown as Prisma.InputJsonValue,
+    },
+  });
 
     logger.log({ chargerId }, 'Heartbeat received');
     return;
   }
 
   /* ---------- BootNotification ---------- */
-  if (action === 'BootNotification') {
+  if (actionName === 'BootNotification') {
+    if (!payload || typeof payload !== 'object') {
+      sendCallError(socket, msgId, 'FormationViolation', 'Invalid BootNotification payload');
+      return;
+    }
+
     await prisma.charger.upsert({
       where: { chargerId },
       update: {
@@ -120,9 +175,7 @@ export async function routeOcppMessage(
       interval: 300,
     };
 
-    socket.send(
-      JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
-    );
+    socket.send(JSON.stringify([OcppMessageType.CALL_RESULT, msgId, response]));
 
     // Log outgoing response
     await prisma.ocppMessageLog.create({
@@ -130,24 +183,38 @@ export async function routeOcppMessage(
         chargerId: chargerRow.id,
         direction: 'OUT',
         operation: 'BootNotification',
-        messageId: String(messageId),
-        raw: response as unknown as Prisma.InputJsonValue,
-        status: response.status,
-      },
-    });
+      messageId: msgId,
+      raw: response as unknown as Prisma.InputJsonValue,
+      status: response.status,
+    },
+  });
 
     logger.log({ chargerId }, 'BootNotification accepted');
     return;
   }
 
   /* ---------- StartTransaction ---------- */
-  if (action === 'StartTransaction') {
+  if (actionName === 'StartTransaction') {
+    if (!payload || typeof payload !== 'object') {
+      sendCallError(socket, msgId, 'FormationViolation', 'Invalid StartTransaction payload');
+      return;
+    }
+
+    const idTag = String(payload.idTag ?? '').trim();
+    const meterStart = Number(payload.meterStart);
+    const ts = new Date(payload.timestamp ?? '');
+    if (!idTag || !Number.isFinite(meterStart) || Number.isNaN(ts.getTime())) {
+      sendCallError(socket, msgId, 'PropertyConstraintViolation', 'Invalid StartTransaction fields');
+      return;
+    }
+
     const charger = await prisma.charger.findUnique({
       where: { chargerId },
     });
 
     if (!charger) {
       logger.warn({ chargerId }, 'StartTransaction for unknown charger');
+      sendCallError(socket, msgId, 'NotFound', 'Charger not found');
       return;
     }
 
@@ -162,9 +229,9 @@ export async function routeOcppMessage(
       data: {
         ocppTransactionId,
         chargerId: charger.id,
-        idTag: payload.idTag,
-        meterStart: payload.meterStart,
-        startedAt: new Date(payload.timestamp),
+        idTag,
+        meterStart,
+        startedAt: ts,
       },
     });
 
@@ -173,9 +240,7 @@ export async function routeOcppMessage(
       idTagInfo: { status: 'Accepted' },
     };
 
-    socket.send(
-      JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
-    );
+    socket.send(JSON.stringify([OcppMessageType.CALL_RESULT, msgId, response]));
 
     // Log outgoing response
     await prisma.ocppMessageLog.create({
@@ -183,11 +248,11 @@ export async function routeOcppMessage(
         chargerId: chargerRow.id,
         direction: 'OUT',
         operation: 'StartTransaction',
-        messageId: String(messageId),
-        raw: response as unknown as Prisma.InputJsonValue,
-        status: response.idTagInfo?.status ?? null,
-      },
-    });
+      messageId: msgId,
+      raw: response as unknown as Prisma.InputJsonValue,
+      status: response.idTagInfo?.status ?? null,
+    },
+  });
 
     logger.log(
       { chargerId, ocppTransactionId },
@@ -198,25 +263,51 @@ export async function routeOcppMessage(
   }
 
   /* ---------- StopTransaction ---------- */
-  if (action === 'StopTransaction') {
-    await prisma.transaction.update({
-      where: {
-        ocppTransactionId: payload.transactionId,
-      },
-      data: {
-        meterStop: payload.meterStop,
-        stoppedAt: new Date(payload.timestamp),
-        stopReason: payload.reason,
-      },
+  if (actionName === 'StopTransaction') {
+    if (!payload || typeof payload !== 'object') {
+      sendCallError(socket, msgId, 'FormationViolation', 'Invalid StopTransaction payload');
+      return;
+    }
+
+    const txId = Number(payload.transactionId);
+    const meterStop = Number(payload.meterStop);
+    const ts = new Date(payload.timestamp ?? '');
+    if (!Number.isFinite(txId) || !Number.isFinite(meterStop) || Number.isNaN(ts.getTime())) {
+      sendCallError(socket, msgId, 'PropertyConstraintViolation', 'Invalid StopTransaction fields');
+      return;
+    }
+
+    const existingTx = await prisma.transaction.findUnique({
+      where: { ocppTransactionId: txId },
     });
+
+    if (!existingTx) {
+      sendCallError(socket, msgId, 'NotFound', 'Transaction not found');
+      return;
+    }
+
+    if (existingTx.meterStop !== null) {
+      logger.warn({ chargerId, txId }, 'StopTransaction ignored: already stopped');
+    } else if (meterStop < existingTx.meterStart) {
+      logger.warn({ chargerId, txId }, 'StopTransaction ignored: meterStop < meterStart');
+    } else {
+      await prisma.transaction.update({
+        where: {
+          ocppTransactionId: txId,
+        },
+        data: {
+          meterStop,
+          stoppedAt: ts,
+          stopReason: payload.reason ? String(payload.reason) : null,
+        },
+      });
+    }
 
     const response: StopTransactionResponse = {
       idTagInfo: { status: 'Accepted' },
     };
 
-    socket.send(
-      JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
-    );
+    socket.send(JSON.stringify([OcppMessageType.CALL_RESULT, msgId, response]));
 
     // Log outgoing response
     await prisma.ocppMessageLog.create({
@@ -224,11 +315,11 @@ export async function routeOcppMessage(
         chargerId: chargerRow.id,
         direction: 'OUT',
         operation: 'StopTransaction',
-        messageId: String(messageId),
-        raw: response as unknown as Prisma.InputJsonValue,
-        status: response.idTagInfo?.status ?? null,
-      },
-    });
+      messageId: msgId,
+      raw: response as unknown as Prisma.InputJsonValue,
+      status: response.idTagInfo?.status ?? null,
+    },
+  });
 
     logger.log(
       { chargerId, ocppTransactionId: payload.transactionId },
@@ -239,15 +330,24 @@ export async function routeOcppMessage(
   }
 
   /* ---------- StatusNotification ---------- */
-  if (action === 'StatusNotification') {
+  if (actionName === 'StatusNotification') {
     const req = payload as StatusNotificationRequest;
+    if (!req || typeof req !== 'object') {
+      sendCallError(socket, msgId, 'FormationViolation', 'Invalid StatusNotification payload');
+      return;
+    }
+    const connectorId = Number(req.connectorId);
+    if (!Number.isFinite(connectorId) || !req.status || !req.errorCode) {
+      sendCallError(socket, msgId, 'PropertyConstraintViolation', 'Invalid StatusNotification fields');
+      return;
+    }
 
     // Persist connector status (for the colored dots in the chargers table)
     await prisma.connectorStatus.upsert({
       where: {
         chargerId_connectorId: {
           chargerId: chargerRow.id,
-          connectorId: Number(req.connectorId),
+          connectorId,
         },
       },
       update: {
@@ -268,9 +368,7 @@ export async function routeOcppMessage(
 
     const response = {};
 
-    socket.send(
-      JSON.stringify([OcppMessageType.CALL_RESULT, messageId, response]),
-    );
+    socket.send(JSON.stringify([OcppMessageType.CALL_RESULT, msgId, response]));
 
     // Log outgoing response
     await prisma.ocppMessageLog.create({
@@ -278,10 +376,10 @@ export async function routeOcppMessage(
         chargerId: chargerRow.id,
         direction: 'OUT',
         operation: 'StatusNotification',
-        messageId: String(messageId),
-        raw: response as unknown as Prisma.InputJsonValue,
-      },
-    });
+      messageId: msgId,
+      raw: response as unknown as Prisma.InputJsonValue,
+    },
+  });
 
     logger.log(
       { chargerId, connectorId: req.connectorId, status: req.status },
