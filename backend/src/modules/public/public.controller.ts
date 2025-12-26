@@ -83,4 +83,47 @@ export class PublicController {
 
     return { ok: true, messageId };
   }
+
+  @Post('qr/:code/stop')
+  async stopFromQr(
+    @Param('code') code: string,
+    @Body() body: { transactionId: number },
+  ) {
+    const txId = Number(body.transactionId);
+    if (!Number.isFinite(txId)) return { ok: false, error: 'transactionId is required' };
+
+    const qr = await this.prisma.qrCode.findUnique({
+      where: { code },
+      include: { charger: true },
+    });
+    if (!qr || !qr.active) return { ok: false, error: 'QR not found' };
+    if (!qr.charger) return { ok: false, error: 'QR not linked to a charger' };
+
+    const socket = this.registry.get(qr.charger.chargerId);
+    if (!socket) return { ok: false, error: 'Charger offline' };
+
+    const messageId = randomUUID();
+    const payload = { transactionId: txId };
+
+    socket.send(JSON.stringify([OcppMessageType.CALL, messageId, 'RemoteStopTransaction', payload]));
+
+    const chargerRow = await this.prisma.charger.findUnique({
+      where: { chargerId: qr.charger.chargerId },
+      select: { id: true },
+    });
+
+    if (chargerRow) {
+      await this.prisma.ocppMessageLog.create({
+        data: {
+          chargerId: chargerRow.id,
+          direction: 'OUT',
+          operation: 'RemoteStopTransaction',
+          messageId,
+          raw: payload as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
+
+    return { ok: true, messageId };
+  }
 }

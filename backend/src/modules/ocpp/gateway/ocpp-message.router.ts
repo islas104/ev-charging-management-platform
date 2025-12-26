@@ -62,16 +62,22 @@ export async function routeOcppMessage(
   if (messageType !== OcppMessageType.CALL) {
     if (messageType === OcppMessageType.CALL_RESULT || messageType === OcppMessageType.CALL_ERROR) {
       const msgId = String(messageId ?? '');
-      await prisma.ocppMessageLog.create({
-        data: {
-          chargerId: (await prisma.charger.findUnique({ where: { chargerId: (socket as any).ocpp?.chargerId } }))?.id ?? 0,
-          direction: 'IN',
-          operation: messageType === OcppMessageType.CALL_RESULT ? 'CALL_RESULT' : 'CALL_ERROR',
-          messageId: msgId,
-          raw: (payload ?? {}) as Prisma.InputJsonValue,
-          status: messageType === OcppMessageType.CALL_ERROR ? 'Error' : 'Ok',
-        },
-      }).catch(() => {});
+      const chargerIdStr = (socket as any).ocpp?.chargerId;
+      const chargerRow = chargerIdStr
+        ? await prisma.charger.findUnique({ where: { chargerId: chargerIdStr } })
+        : null;
+      if (chargerRow) {
+        await prisma.ocppMessageLog.create({
+          data: {
+            chargerId: chargerRow.id,
+            direction: 'IN',
+            operation: messageType === OcppMessageType.CALL_RESULT ? 'CALL_RESULT' : 'CALL_ERROR',
+            messageId: msgId,
+            raw: (payload ?? {}) as Prisma.InputJsonValue,
+            status: messageType === OcppMessageType.CALL_ERROR ? 'Error' : 'Ok',
+          },
+        }).catch(() => {});
+      }
     }
     return;
   }
@@ -466,9 +472,13 @@ export async function routeOcppMessage(
       where: { uid: idTag },
     });
 
+    const allowUnknown =
+      String(process.env.OCPP_ALLOW_UNKNOWN_IDTAG ?? '').toLowerCase() === 'true';
+    const accepted = fob?.active || (!fob && allowUnknown);
+
     const response = {
       idTagInfo: {
-        status: fob?.active ? 'Accepted' : 'Rejected',
+        status: accepted ? 'Accepted' : 'Rejected',
       },
     };
 
@@ -491,6 +501,32 @@ export async function routeOcppMessage(
   /* ---------- MeterValues ---------- */
   if (actionName === 'MeterValues') {
     const response = {};
+
+    const txIdRaw = payload?.transactionId;
+    const ocppTransactionId = Number(txIdRaw);
+    const connectorId = payload?.connectorId === undefined ? null : Number(payload.connectorId);
+    const timestamp = payload?.timestamp ? new Date(payload.timestamp) : null;
+
+    let transactionId: number | null = null;
+    if (Number.isFinite(ocppTransactionId)) {
+      const tx = await prisma.transaction.findUnique({
+        where: { ocppTransactionId },
+        select: { id: true },
+      });
+      transactionId = tx?.id ?? null;
+    }
+
+    await prisma.meterValue.create({
+      data: {
+        chargerId: chargerRow.id,
+        transactionId,
+        ocppTransactionId: Number.isFinite(ocppTransactionId) ? ocppTransactionId : null,
+        connectorId: Number.isFinite(connectorId) ? connectorId : null,
+        timestamp: timestamp && !Number.isNaN(timestamp.getTime()) ? timestamp : null,
+        raw: (payload ?? {}) as Prisma.InputJsonValue,
+      },
+    });
+
     socket.send(JSON.stringify([OcppMessageType.CALL_RESULT, msgId, response]));
 
     await prisma.ocppMessageLog.create({

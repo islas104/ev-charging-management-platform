@@ -79,6 +79,7 @@ model Charger {
   connectors   ConnectorStatus[]
   ocppMessages OcppMessageLog[]
   qrCodes      QrCode[]
+  meterValues  MeterValue[]
 
   createdAt    DateTime  @default(now())
 }
@@ -153,6 +154,25 @@ model Transaction {
   idleFee            Decimal?  @db.Decimal(10, 4)
   vatRate            Decimal?  @db.Decimal(5, 4)
   currency           String?
+
+  meterValues        MeterValue[]
+}
+
+model MeterValue {
+  id                Int      @id @default(autoincrement())
+  chargerId         Int
+  transactionId     Int?
+  ocppTransactionId Int?
+  connectorId       Int?
+  timestamp         DateTime?
+  raw               Json
+  createdAt         DateTime @default(now())
+
+  charger           Charger  @relation(fields: [chargerId], references: [id])
+  transaction       Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([chargerId, createdAt])
+  @@index([ocppTransactionId])
 }
 
 model AdminUser {

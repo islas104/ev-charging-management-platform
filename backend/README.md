@@ -93,6 +93,8 @@ Sec-WebSocket-Protocol
 Supported:
 - `ocpp1.6`
 
+Easee One is supported with OCPP 1.6.
+
 ---
 
 ## Charger & Transaction State
@@ -168,6 +170,7 @@ THROTTLE_TTL=60
 THROTTLE_LIMIT=120
 HTTP_BODY_LIMIT=1mb
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+OCPP_ALLOW_UNKNOWN_IDTAG=true
 JWT_SECRET=change_me
 JWT_EXPIRES_IN=8h
 SUPER_ADMIN_EMAIL=admin@example.com
