@@ -585,6 +585,23 @@ export class AdminController {
     return { total, items };
   }
 
+  /**
+   * Remote command status (for QR start/stop visibility)
+   */
+  @Get('remote-commands')
+  async listRemoteCommands(@Query('chargerId') chargerId?: string) {
+    const where = chargerId
+      ? { charger: { chargerId: String(chargerId) } }
+      : {};
+
+    return this.prisma.remoteCommand.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: { charger: { select: { chargerId: true } } },
+    });
+  }
+
   // ===== Drivers + RFID fobs (admin) =====
 
   @Get('drivers')
@@ -779,6 +796,11 @@ export class AdminController {
   ) {
     const accountId = Number(body.accountId);
     if (!Number.isFinite(accountId)) return { ok: false, error: 'accountId is required' };
+    const accountExists = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      select: { id: true },
+    });
+    if (!accountExists) return { ok: false, error: 'accountId not found' };
 
     const name = String(body.name ?? '').trim();
     const address = String(body.address ?? '').trim();
@@ -793,6 +815,21 @@ export class AdminController {
     const access = String(body.access ?? 'PUBLIC').toUpperCase();
     const visibility = String(body.visibility ?? 'LISTED').toUpperCase();
 
+    let tariffId: number | null = null;
+    if (body.tariffId !== undefined && body.tariffId !== null) {
+      const tariffIdNum = Number(body.tariffId);
+      if (Number.isFinite(tariffIdNum) && tariffIdNum > 0) {
+        const tariff = await this.prisma.tariff.findUnique({
+          where: { id: tariffIdNum },
+          select: { id: true },
+        });
+        if (!tariff) {
+          return { ok: false, error: 'tariffId not found' };
+        }
+        tariffId = tariffIdNum;
+      }
+    }
+
     const location = await this.prisma.location.create({
       data: {
         accountId,
@@ -802,7 +839,7 @@ export class AdminController {
         longitude: new Prisma.Decimal(longitude),
         access: access === 'PRIVATE' ? 'PRIVATE' : access === 'RESTRICTED' ? 'RESTRICTED' : 'PUBLIC',
         visibility: visibility === 'UNLISTED' ? 'UNLISTED' : 'LISTED',
-        tariffId: body.tariffId ? Number(body.tariffId) : null,
+        tariffId,
       },
     });
 
@@ -922,11 +959,30 @@ export class AdminController {
       return { ok: false, error: 'code and locationId are required' };
     }
 
+    const location = await this.prisma.location.findUnique({
+      where: { id: locationId },
+      select: { id: true },
+    });
+    if (!location) return { ok: false, error: 'locationId not found' };
+
+    let chargerId: number | null = null;
+    if (body.chargerId !== undefined && body.chargerId !== null) {
+      const chargerIdNum = Number(body.chargerId);
+      if (Number.isFinite(chargerIdNum) && chargerIdNum > 0) {
+        const charger = await this.prisma.charger.findUnique({
+          where: { id: chargerIdNum },
+          select: { id: true },
+        });
+        if (!charger) return { ok: false, error: 'chargerId not found' };
+        chargerId = chargerIdNum;
+      }
+    }
+
     const qr = await this.prisma.qrCode.create({
       data: {
         code,
         locationId,
-        chargerId: body.chargerId ? Number(body.chargerId) : null,
+        chargerId,
         connectorId: body.connectorId ? Number(body.connectorId) : null,
       },
     });

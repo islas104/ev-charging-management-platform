@@ -2461,7 +2461,8 @@
         const accountId = Number(els.locationAccountInput?.value);
         const name = String(els.locationNameInput?.value || '').trim();
         const address = String(els.locationAddressInput?.value || '').trim();
-        const tariffId = Number(els.locationTariffInput?.value || '');
+        const tariffRaw = String(els.locationTariffInput?.value || '').trim();
+        const tariffId = tariffRaw ? Number(tariffRaw) : null;
         const latitude = Number(els.locationLatInput?.value);
         const longitude = Number(els.locationLngInput?.value);
 

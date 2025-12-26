@@ -77,6 +77,13 @@ export async function routeOcppMessage(
             status: messageType === OcppMessageType.CALL_ERROR ? 'Error' : 'Ok',
           },
         }).catch(() => {});
+
+        await prisma.remoteCommand.updateMany({
+          where: { chargerId: chargerRow.id, messageId: msgId },
+          data: {
+            status: messageType === OcppMessageType.CALL_ERROR ? 'Rejected' : 'Accepted',
+          },
+        }).catch(() => {});
       }
     }
     return;
@@ -381,11 +388,35 @@ export async function routeOcppMessage(
         chargerId: chargerRow.id,
         direction: 'OUT',
         operation: 'StopTransaction',
-      messageId: msgId,
-      raw: response as unknown as Prisma.InputJsonValue,
-      status: response.idTagInfo?.status ?? null,
-    },
-  });
+        messageId: msgId,
+        raw: response as unknown as Prisma.InputJsonValue,
+        status: response.idTagInfo?.status ?? null,
+      },
+    });
+
+    const lastMeter = await prisma.meterValue.findFirst({
+      where: { ocppTransactionId: txId },
+      orderBy: { createdAt: 'desc' },
+      select: { raw: true },
+    });
+
+    const meterStopValue = Number(payload.meterStop);
+    const meterStartValue = Number(existingTx.meterStart);
+    const kwh = meterStopValue > meterStartValue ? (meterStopValue - meterStartValue) / 1000 : 0;
+
+    let totalCost: number | null = null;
+    if (existingTx.energyFee && kwh > 0) {
+      totalCost = Number(existingTx.energyFee) * kwh + Number(existingTx.startFee ?? 0);
+    }
+
+    await prisma.transaction.update({
+      where: { ocppTransactionId: txId },
+      data: {
+        totalEnergyKwh: kwh ? new Prisma.Decimal(kwh) : null,
+        totalCost: totalCost !== null ? new Prisma.Decimal(totalCost) : null,
+        totalIdleMinutes: null,
+      },
+    }).catch(() => {});
 
     logger.log(
       { chargerId, ocppTransactionId: payload.transactionId },

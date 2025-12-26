@@ -70,6 +70,16 @@ export class PublicController {
     });
 
     if (chargerRow) {
+      await this.prisma.remoteCommand.create({
+        data: {
+          chargerId: chargerRow.id,
+          command: 'RemoteStartTransaction',
+          messageId,
+          payload: payload as unknown as Prisma.InputJsonValue,
+          status: 'Pending',
+        },
+      });
+
       await this.prisma.ocppMessageLog.create({
         data: {
           chargerId: chargerRow.id,
@@ -113,6 +123,16 @@ export class PublicController {
     });
 
     if (chargerRow) {
+      await this.prisma.remoteCommand.create({
+        data: {
+          chargerId: chargerRow.id,
+          command: 'RemoteStopTransaction',
+          messageId,
+          payload: payload as unknown as Prisma.InputJsonValue,
+          status: 'Pending',
+        },
+      });
+
       await this.prisma.ocppMessageLog.create({
         data: {
           chargerId: chargerRow.id,
