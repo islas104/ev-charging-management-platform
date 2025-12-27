@@ -30,6 +30,7 @@ Repository Structure
 ├── frontend/           # Static frontend UIs
 │   ├── index.html      # Charger simulator
 │   └── admin.html      # Admin dashboard
+│   └── qr.html         # Driver QR start/stop page
 ├── README.md           # You are here`
 
 * * * * *
@@ -52,6 +53,12 @@ Key Capabilities
     -   StartTransaction
 
     -   StopTransaction
+    
+    -   StatusNotification
+    
+    -   Authorize
+    
+    -   MeterValues
 
 -   PostgreSQL-backed charger and transaction state (Prisma)
 
@@ -132,6 +139,14 @@ Shows:
 
 Login:
 - `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `backend/.env`
+
+* * * * *
+
+### 4\. Open the QR Driver Page
+
+Open in a browser (replace with your code):
+
+`frontend/qr.html?code=YOUR_QR_CODE`
 
 * * * * *
 

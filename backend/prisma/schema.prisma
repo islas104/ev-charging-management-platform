@@ -139,6 +139,7 @@ model Transaction {
   idTag              String
   meterStart         Int
   meterStop          Int?
+  connectorId        Int?
   startedAt          DateTime  @default(now())
   stoppedAt          DateTime?
   stopReason         String?
@@ -161,6 +162,8 @@ model Transaction {
   totalEnergyKwh     Decimal?  @db.Decimal(12, 4)
   totalIdleMinutes   Int?
   totalCost          Decimal?  @db.Decimal(12, 4)
+
+  @@index([chargerId, connectorId])
 }
 
 model RemoteCommand {
@@ -205,6 +208,13 @@ model AdminUser {
 
   accountId    Int?
   account      Account? @relation(fields: [accountId], references: [id])
+
+  failedLoginCount Int      @default(0)
+  lockedUntil      DateTime?
+  resetToken       String?
+  resetTokenExpiresAt DateTime?
+
+  auditLogs     AdminAuditLog[]
 }
 
 enum AdminRole {
@@ -222,6 +232,36 @@ model PricingConfig {
   currency        String   @default("GBP")
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())
+}
+
+model AdminAuditLog {
+  id         Int      @id @default(autoincrement())
+  adminUserId Int?
+  action     String
+  entity     String?
+  entityId   String?
+  ipAddress  String?
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  adminUser  AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([adminUserId, createdAt])
+  @@index([action])
+}
+
+model IdempotencyKey {
+  id          Int      @id @default(autoincrement())
+  key         String
+  scope       String
+  ownerKey    String
+  requestHash String
+  statusCode  Int
+  response    Json
+  createdAt   DateTime @default(now())
+
+  @@unique([key, scope, ownerKey])
+  @@index([scope, createdAt])
 }
 
 model Driver {

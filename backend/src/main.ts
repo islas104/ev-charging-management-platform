@@ -33,6 +33,10 @@ async function bootstrap() {
   app.use(express.json({ limit: bodyLimit }));
   app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
   app.use(helmet());
+  const httpAdapter = app.getHttpAdapter().getInstance();
+  if (httpAdapter?.disable) {
+    httpAdapter.disable('x-powered-by');
+  }
 
   // Enable CORS so the static frontend (VS Code Live Server on a random localhost port)
   // can call the API at http://localhost:3000
@@ -58,7 +62,13 @@ async function bootstrap() {
         : cb(new Error(`CORS blocked origin: ${origin}`), false);
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Admin-Key',
+      'Idempotency-Key',
+      'X-Request-Id',
+    ],
   });
 
   await app.listen(process.env.PORT ?? 3000);

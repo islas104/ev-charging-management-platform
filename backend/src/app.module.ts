@@ -12,6 +12,7 @@ import { OcppModule } from './modules/ocpp/ocpp.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { BootstrapService } from './modules/bootstrap/bootstrap.service';
 
 @Module({
   imports: [
@@ -28,6 +29,15 @@ import { PrismaModule } from './prisma/prisma.module';
         THROTTLE_LIMIT: Joi.number().default(120),
         OCPP_SHARED_SECRET: Joi.string().allow('').optional(),
         OCPP_MAX_MESSAGE_BYTES: Joi.number().default(1000000),
+        OCPP_ALLOW_UNKNOWN_IDTAG: Joi.boolean().default(false),
+        JWT_SECRET: Joi.string().min(8).required(),
+        JWT_EXPIRES_IN: Joi.string().default('8h'),
+        AUTH_MAX_LOGIN_ATTEMPTS: Joi.number().default(5),
+        AUTH_LOCK_MINUTES: Joi.number().default(15),
+        AUTH_RESET_TOKEN_TTL_MIN: Joi.number().default(30),
+        IDEMPOTENCY_TTL_HOURS: Joi.number().default(24),
+        REMOTE_COMMAND_TTL_SECONDS: Joi.number().default(45),
+        SEED_DEFAULTS: Joi.boolean().default(true),
       }),
     }),
     ThrottlerModule.forRoot({
@@ -65,6 +75,7 @@ import { PrismaModule } from './prisma/prisma.module';
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    BootstrapService,
   ],
 })
 export class AppModule {

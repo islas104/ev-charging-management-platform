@@ -63,6 +63,9 @@ src/
 - Heartbeat
 - StartTransaction
 - StopTransaction
+- StatusNotification
+- Authorize
+- MeterValues
 
 Each action:
 - Is routed via a central message router
@@ -170,11 +173,17 @@ THROTTLE_TTL=60
 THROTTLE_LIMIT=120
 HTTP_BODY_LIMIT=1mb
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
-OCPP_ALLOW_UNKNOWN_IDTAG=true
+OCPP_ALLOW_UNKNOWN_IDTAG=false
 JWT_SECRET=change_me
 JWT_EXPIRES_IN=8h
 SUPER_ADMIN_EMAIL=admin@example.com
 SUPER_ADMIN_PASSWORD=change_me
+AUTH_MAX_LOGIN_ATTEMPTS=5
+AUTH_LOCK_MINUTES=15
+AUTH_RESET_TOKEN_TTL_MIN=30
+IDEMPOTENCY_TTL_HOURS=24
+REMOTE_COMMAND_TTL_SECONDS=45
+SEED_DEFAULTS=true
 
 # Running Locally
 
@@ -198,6 +207,14 @@ GET /health
 GET /ready
 
 # Auth & Roles
+
+Admin endpoints are protected with JWT auth. Use the `Idempotency-Key` header on POSTs to make create operations safe to retry.
+
+# Public QR Endpoints
+
+GET /public/qr/:code
+POST /public/qr/:code/start
+POST /public/qr/:code/stop
 
 Login:
 POST /auth/login

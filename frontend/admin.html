@@ -1082,11 +1082,11 @@
                 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
                   <div class="card" style="min-height:auto;">
                     <div class="label">Operator Account ID</div>
-                    <input id="connectedOperatorInput" placeholder="1" type="number" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                    <input id="connectedOperatorInput" list="accountList" placeholder="1" type="number" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
                   </div>
                   <div class="card" style="min-height:auto;">
                     <div class="label">Owner Account ID</div>
-                    <input id="connectedOwnerInput" placeholder="2" type="number" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                    <input id="connectedOwnerInput" list="accountList" placeholder="2" type="number" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
                   </div>
                   <div class="card" style="min-height:auto;">
                     <div class="label">Service Fee %</div>
@@ -1147,7 +1147,7 @@
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
                   <div class="card" style="min-height:auto;">
                     <div class="label">Account ID</div>
-                    <input id="locationAccountInput" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                    <input id="locationAccountInput" list="accountList" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
                   </div>
                   <div class="card" style="min-height:auto;">
                     <div class="label">Name</div>
@@ -1159,7 +1159,7 @@
                   </div>
                   <div class="card" style="min-height:auto;">
                     <div class="label">Tariff ID</div>
-                    <input id="locationTariffInput" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                    <input id="locationTariffInput" list="tariffList" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
                   </div>
                   <div class="card" style="min-height:auto;">
                     <div class="label">Latitude</div>
@@ -1302,11 +1302,11 @@
                   </div>
                   <div class="card" style="min-height:auto;">
                     <div class="label">Location ID</div>
-                    <input id="qrLocationInput" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                    <input id="qrLocationInput" list="locationList" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
                   </div>
                   <div class="card" style="min-height:auto;">
                     <div class="label">Charger ID</div>
-                    <input id="qrChargerInput" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                    <input id="qrChargerInput" list="chargerList" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
                   </div>
                   <div class="card" style="min-height:auto;">
                     <div class="label">Connector</div>
@@ -1432,6 +1432,11 @@
               </div>
             </div>
           </section>
+
+          <datalist id="accountList"></datalist>
+          <datalist id="tariffList"></datalist>
+          <datalist id="locationList"></datalist>
+          <datalist id="chargerList"></datalist>
         </main>
       </div>
     </div>
@@ -1666,6 +1671,12 @@
         userPasswordInput: document.getElementById('userPasswordInput'),
         userRoleInput: document.getElementById('userRoleInput'),
 
+        // datalists
+        accountList: document.getElementById('accountList'),
+        tariffList: document.getElementById('tariffList'),
+        locationList: document.getElementById('locationList'),
+        chargerList: document.getElementById('chargerList'),
+
         // auth
         authBackdrop: document.getElementById('authBackdrop'),
         authEmail: document.getElementById('authEmail'),
@@ -1845,6 +1856,22 @@
         const x = Number(n);
         if (!Number.isFinite(x)) return 0;
         return Math.round((x + Number.EPSILON) * 10000) / 10000;
+      }
+
+      function updateDatalist(listEl, items, labelFn, valueFn) {
+        if (!listEl) return;
+        listEl.innerHTML = '';
+
+        const frag = document.createDocumentFragment();
+        (Array.isArray(items) ? items : []).forEach((item) => {
+          const option = document.createElement('option');
+          const value = valueFn ? valueFn(item) : item?.id;
+          option.value = value !== undefined && value !== null ? String(value) : '';
+          option.textContent = labelFn ? labelFn(item) : option.value;
+          frag.appendChild(option);
+        });
+
+        listEl.appendChild(frag);
       }
 
       function fmtMoneyPerKwh(n, currency = 'GBP') {
@@ -2156,6 +2183,11 @@
 
         renderChargers();
         renderDashboardLists();
+        updateDatalist(
+          els.chargerList,
+          chargersCache,
+          (c) => `${c.id} — ${c.chargerId}`,
+        );
 
         els.lastUpdated.textContent = `Last updated: ${new Date().toLocaleString()}`;
 
@@ -2379,6 +2411,11 @@
         accountsCache = Array.isArray(data) ? data : [];
         if (els.accountsMeta) els.accountsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
         renderAccounts();
+        updateDatalist(
+          els.accountList,
+          accountsCache,
+          (a) => `${a.id} — ${a.name}`,
+        );
       }
 
       async function createAccount() {
@@ -2455,6 +2492,11 @@
         locationsCache = Array.isArray(data) ? data : [];
         if (els.locationsMeta) els.locationsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
         renderLocations();
+        updateDatalist(
+          els.locationList,
+          locationsCache,
+          (l) => `${l.id} — ${l.name}`,
+        );
       }
 
       async function createLocation() {
@@ -2517,6 +2559,11 @@
         tariffsCache = Array.isArray(data) ? data : [];
         if (els.tariffsMeta) els.tariffsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
         renderTariffs();
+        updateDatalist(
+          els.tariffList,
+          tariffsCache,
+          (t) => `${t.id} — ${t.name}`,
+        );
       }
 
       async function createTariff() {

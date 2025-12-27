@@ -23,6 +23,33 @@ type StatusNotificationRequest = {
 
 const MAX_MESSAGE_BYTES = Number(process.env.OCPP_MAX_MESSAGE_BYTES ?? 1000000);
 
+function extractEnergyKwhFromMeterValues(payload: any, meterStart: number | null) {
+  const meterValues = payload?.meterValue ?? payload?.meterValues;
+  if (!Array.isArray(meterValues) || !Number.isFinite(meterStart)) return null;
+
+  let lastEnergyWh: number | null = null;
+  for (const entry of meterValues) {
+    const samples = Array.isArray(entry?.sampledValue) ? entry.sampledValue : [];
+    for (const sample of samples) {
+      const measurand = String(sample?.measurand ?? '').trim();
+      if (measurand && measurand !== 'Energy.Active.Import.Register') continue;
+
+      const rawValue = Number(sample?.value);
+      if (!Number.isFinite(rawValue)) continue;
+
+      const unit = String(sample?.unit ?? 'Wh').toLowerCase();
+      const valueWh = unit === 'kwh' ? rawValue * 1000 : rawValue;
+      if (Number.isFinite(valueWh)) lastEnergyWh = valueWh;
+    }
+  }
+
+  if (!Number.isFinite(lastEnergyWh) || !Number.isFinite(meterStart)) return null;
+  const deltaWh = (lastEnergyWh as number) - (meterStart as number);
+  if (!Number.isFinite(deltaWh) || deltaWh < 0) return null;
+
+  return deltaWh / 1000;
+}
+
 function sendCallError(
   socket: WebSocket,
   messageId: string,
@@ -232,6 +259,7 @@ export async function routeOcppMessage(
 
     const idTag = String(payload.idTag ?? '').trim();
     const meterStart = Number(payload.meterStart);
+    const connectorId = payload.connectorId === undefined ? null : Number(payload.connectorId);
     const ts = new Date(payload.timestamp ?? '');
     if (!idTag || !Number.isFinite(meterStart) || Number.isNaN(ts.getTime())) {
       sendCallError(socket, msgId, 'PropertyConstraintViolation', 'Invalid StartTransaction fields');
@@ -296,6 +324,7 @@ export async function routeOcppMessage(
         chargerId: charger.id,
         idTag,
         meterStart,
+        connectorId: Number.isFinite(connectorId) ? connectorId : null,
         startedAt: ts,
         locationId: charger.locationId ?? null,
         driverId: fob?.driver?.id ?? null,
@@ -394,12 +423,6 @@ export async function routeOcppMessage(
       },
     });
 
-    const lastMeter = await prisma.meterValue.findFirst({
-      where: { ocppTransactionId: txId },
-      orderBy: { createdAt: 'desc' },
-      select: { raw: true },
-    });
-
     const meterStopValue = Number(payload.meterStop);
     const meterStartValue = Number(existingTx.meterStart);
     const kwh = meterStopValue > meterStartValue ? (meterStopValue - meterStartValue) / 1000 : 0;
@@ -439,6 +462,9 @@ export async function routeOcppMessage(
       return;
     }
 
+    const statusTimeRaw = req.timestamp ? new Date(req.timestamp) : new Date();
+    const statusTime = Number.isNaN(statusTimeRaw.getTime()) ? new Date() : statusTimeRaw;
+
     // Persist connector status (for the colored dots in the chargers table)
     await prisma.connectorStatus.upsert({
       where: {
@@ -462,6 +488,41 @@ export async function routeOcppMessage(
         info: req.info ? String(req.info) : null,
       },
     });
+
+    if (String(req.status).toLowerCase() === 'available') {
+      const tx = await prisma.transaction.findFirst({
+        where: {
+          chargerId: chargerRow.id,
+          connectorId,
+          stoppedAt: { not: null },
+          totalIdleMinutes: null,
+        },
+        orderBy: { stoppedAt: 'desc' },
+      });
+
+      if (tx?.stoppedAt && statusTime.getTime() >= tx.stoppedAt.getTime()) {
+        const idleMinutes = Math.max(
+          0,
+          Math.ceil((statusTime.getTime() - tx.stoppedAt.getTime()) / 60000),
+        );
+
+        const idleFeePerHour = tx.idleFee ? Number(tx.idleFee) : 0;
+        const idleCost = idleFeePerHour > 0 ? idleFeePerHour * (idleMinutes / 60) : 0;
+        const existingTotal = tx.totalCost ? Number(tx.totalCost) : null;
+        const newTotal =
+          idleCost > 0
+            ? (existingTotal ?? 0) + idleCost
+            : existingTotal;
+
+        await prisma.transaction.update({
+          where: { id: tx.id },
+          data: {
+            totalIdleMinutes: idleMinutes,
+            ...(newTotal !== null ? { totalCost: new Prisma.Decimal(newTotal) } : {}),
+          },
+        }).catch(() => {});
+      }
+    }
 
     const response = {};
 
@@ -539,12 +600,14 @@ export async function routeOcppMessage(
     const timestamp = payload?.timestamp ? new Date(payload.timestamp) : null;
 
     let transactionId: number | null = null;
+    let meterStart: number | null = null;
     if (Number.isFinite(ocppTransactionId)) {
       const tx = await prisma.transaction.findUnique({
         where: { ocppTransactionId },
-        select: { id: true },
+        select: { id: true, meterStart: true },
       });
       transactionId = tx?.id ?? null;
+      meterStart = Number.isFinite(tx?.meterStart) ? Number(tx?.meterStart) : null;
     }
 
     await prisma.meterValue.create({
@@ -557,6 +620,14 @@ export async function routeOcppMessage(
         raw: (payload ?? {}) as Prisma.InputJsonValue,
       },
     });
+
+    const kwh = extractEnergyKwhFromMeterValues(payload, meterStart);
+    if (transactionId && Number.isFinite(kwh) && kwh !== null && kwh >= 0) {
+      await prisma.transaction.update({
+        where: { id: transactionId },
+        data: { totalEnergyKwh: new Prisma.Decimal(kwh) },
+      }).catch(() => {});
+    }
 
     socket.send(JSON.stringify([OcppMessageType.CALL_RESULT, msgId, response]));
 
