@@ -828,6 +828,7 @@
                 </div>
                 <div style="padding: 16px; color: rgba(226, 232, 240, 0.75);" id="offlineList">No offline chargers</div>
               </div>
+
             </div>
 
             <!-- Revenue charts panel -->
@@ -2042,6 +2043,7 @@
         els.offlineList.innerHTML = offline.length
           ? `<div style="display:grid;gap:8px;">${offline.map(c => `<div><span style="font-weight:900;">${escapeHtml(c.name)}</span><div class="subtext">ID: ${escapeHtml(c.chargerId)}</div></div>`).join('')}</div>`
           : 'No offline chargers';
+
       }
 
       async function fetchJson(url, opts) {
