@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, Query, Post, Patch, UseGuards, Req, ConflictException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Query, Post, Patch, UseGuards, Req, ConflictException, ForbiddenException } from '@nestjs/common';
 import { AdminRole, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -87,6 +87,53 @@ export class AdminController {
     }, statusCode, response);
   }
 
+  private async getAccountScope(req: Request) {
+    const cached = (req as any)._accountScope;
+    if (cached) return cached as {
+      accountIds: number[] | null;
+      accountId: number | null;
+      role: string;
+      accountType: string | null;
+    };
+
+    const user = (req as any).user;
+    const role = String(user?.role ?? '').toUpperCase();
+    if (role === 'SUPER_ADMIN') {
+      const scope = { accountIds: null, accountId: null, role, accountType: null };
+      (req as any)._accountScope = scope;
+      return scope;
+    }
+
+    const accountId = Number(user?.accountId);
+    if (!Number.isFinite(accountId)) throw new ForbiddenException('Account not assigned');
+
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      select: { id: true, type: true },
+    });
+    if (!account) throw new ForbiddenException('Account not found');
+
+    let accountIds = [accountId];
+    if (account.type === 'OPERATOR') {
+      const linked = await this.prisma.connectedAccount.findMany({
+        where: { operatorAccountId: accountId },
+        select: { ownerAccountId: true },
+      });
+      accountIds = Array.from(
+        new Set([accountId, ...linked.map((c) => c.ownerAccountId)]),
+      );
+    }
+
+    const scope = {
+      accountIds,
+      accountId,
+      role,
+      accountType: account.type,
+    };
+    (req as any)._accountScope = scope;
+    return scope;
+  }
+
   private async logAction(
     req: Request,
     action: string,
@@ -120,15 +167,27 @@ export class AdminController {
   }
 
   @Get('chargers')
-  async getChargers() {
+  async getChargers(@Req() req: Request) {
+    const scope = await this.getAccountScope(req);
+    const where = scope.accountIds
+      ? { location: { accountId: { in: scope.accountIds } } }
+      : {};
+
     return this.prisma.charger.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
     });
   }
 
   @Get('transactions')
-  async getTransactions() {
+  async getTransactions(@Req() req: Request) {
+    const scope = await this.getAccountScope(req);
+    const where = scope.accountIds
+      ? { charger: { location: { accountId: { in: scope.accountIds } } } }
+      : {};
+
     const transactions = await this.prisma.transaction.findMany({
+      where,
       orderBy: { startedAt: 'desc' },
       include: {
         charger: {
@@ -173,16 +232,31 @@ export class AdminController {
     const password = String(body.password ?? '');
     const roleRaw = String(body.role ?? 'ADMIN').toUpperCase();
     const role = roleRaw === 'SUPER_ADMIN' ? AdminRole.SUPER_ADMIN : AdminRole.ADMIN;
+    const accountIdNum = body.accountId === undefined ? null : Number(body.accountId);
 
     if (!email || !password) {
       return { ok: false, error: 'email and password are required' };
     }
+    if (role === AdminRole.ADMIN && !Number.isFinite(accountIdNum)) {
+      return { ok: false, error: 'accountId is required for ADMIN' };
+    }
 
-    const res = await this.auth.createAdminUser(email, password, role);
+    let accountId: number | null = null;
+    if (typeof accountIdNum === 'number' && Number.isFinite(accountIdNum)) {
+      const account = await this.prisma.account.findUnique({
+        where: { id: accountIdNum },
+        select: { id: true },
+      });
+      if (!account) return { ok: false, error: 'accountId not found' };
+      accountId = accountIdNum;
+    }
+
+    const res = await this.auth.createAdminUser(email, password, role, accountId);
     if (res?.ok && res.user?.id) {
       await this.logAction(req, 'admin.create', 'AdminUser', String(res.user.id), {
         email,
         role,
+        accountId,
       });
     }
 
@@ -291,14 +365,28 @@ export class AdminController {
    * - Online: lastSeenAt within onlineWindowSeconds (default 120s)
    */
   @Get('overview')
-  async getOverview(@Query('onlineWindowSeconds') onlineWindowSeconds?: string) {
+  async getOverview(
+    @Query('onlineWindowSeconds') onlineWindowSeconds: string | undefined,
+    @Req() req: Request,
+  ) {
+    const scope = await this.getAccountScope(req);
     const windowSeconds = Number(onlineWindowSeconds ?? 120);
     const cutoff = new Date(Date.now() - windowSeconds * 1000);
 
+    const chargerWhere = scope.accountIds
+      ? { location: { accountId: { in: scope.accountIds } } }
+      : {};
+    const onlineWhere = scope.accountIds
+      ? { lastSeenAt: { gte: cutoff }, location: { accountId: { in: scope.accountIds } } }
+      : { lastSeenAt: { gte: cutoff } };
+    const locationWhere = scope.accountIds
+      ? { accountId: { in: scope.accountIds } }
+      : {};
+
     const [totalChargers, onlineChargers, chargeLocations] = await Promise.all([
-      this.prisma.charger.count(),
-      this.prisma.charger.count({ where: { lastSeenAt: { gte: cutoff } } }),
-      this.prisma.location.count(),
+      this.prisma.charger.count({ where: chargerWhere }),
+      this.prisma.charger.count({ where: onlineWhere }),
+      this.prisma.location.count({ where: locationWhere }),
     ]);
 
     return {
@@ -321,11 +409,18 @@ export class AdminController {
    * Uses connector statuses from ConnectorStatus (StatusNotification).
    */
   @Get('chargers-view')
-  async getChargersView(@Query('onlineWindowSeconds') onlineWindowSeconds?: string) {
+  async getChargersView(
+    @Query('onlineWindowSeconds') onlineWindowSeconds: string | undefined,
+    @Req() req: Request,
+  ) {
+    const scope = await this.getAccountScope(req);
     const windowSeconds = Number(onlineWindowSeconds ?? 120);
     const cutoff = new Date(Date.now() - windowSeconds * 1000);
 
     const chargers = await this.prisma.charger.findMany({
+      where: scope.accountIds
+        ? { location: { accountId: { in: scope.accountIds } } }
+        : {},
       include: {
         location: true,
         connectors: {
@@ -387,9 +482,11 @@ export class AdminController {
    */
   @Get('revenue')
   async getRevenue(
+    @Req() req: Request,
     @Query('range') range?: string,
     @Query('meterUnit') meterUnit?: string,
   ) {
+    const scope = await this.getAccountScope(req);
     const days = parseRangeDays(range ?? '30d');
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
@@ -415,6 +512,9 @@ export class AdminController {
       where: {
         startedAt: { gte: since },
         meterStop: { not: null },
+        ...(scope.accountIds
+          ? { charger: { location: { accountId: { in: scope.accountIds } } } }
+          : {}),
       },
       select: {
         meterStart: true,
@@ -481,9 +581,11 @@ export class AdminController {
   // Debug endpoint to explain why revenue is 0
   @Get('revenue/debug')
   async getRevenueDebug(
+    @Req() req: Request,
     @Query('range') range?: string,
     @Query('meterUnit') meterUnit?: string,
   ) {
+    const scope = await this.getAccountScope(req);
     const days = parseRangeDays(range ?? '30d');
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
@@ -491,15 +593,31 @@ export class AdminController {
     const divisor = unit === 'kwh' ? 1 : 1000;
 
     const totalInRange = await this.prisma.transaction.count({
-      where: { startedAt: { gte: since } },
+      where: {
+        startedAt: { gte: since },
+        ...(scope.accountIds
+          ? { charger: { location: { accountId: { in: scope.accountIds } } } }
+          : {}),
+      },
     });
 
     const withMeterStop = await this.prisma.transaction.count({
-      where: { startedAt: { gte: since }, meterStop: { not: null } },
+      where: {
+        startedAt: { gte: since },
+        meterStop: { not: null },
+        ...(scope.accountIds
+          ? { charger: { location: { accountId: { in: scope.accountIds } } } }
+          : {}),
+      },
     });
 
     const sample = await this.prisma.transaction.findMany({
-      where: { startedAt: { gte: since } },
+      where: {
+        startedAt: { gte: since },
+        ...(scope.accountIds
+          ? { charger: { location: { accountId: { in: scope.accountIds } } } }
+          : {}),
+      },
       orderBy: { startedAt: 'desc' },
       take: 10,
       select: {
@@ -542,9 +660,11 @@ export class AdminController {
    */
   @Get('analytics/top-drivers')
   async getTopDrivers(
+    @Req() req: Request,
     @Query('range') range?: string,
     @Query('meterUnit') meterUnit?: string,
   ) {
+    const scope = await this.getAccountScope(req);
     const days = parseRangeDays(range ?? '30d');
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
@@ -555,6 +675,9 @@ export class AdminController {
       where: {
         startedAt: { gte: since },
         meterStop: { not: null },
+        ...(scope.accountIds
+          ? { charger: { location: { accountId: { in: scope.accountIds } } } }
+          : {}),
       },
       select: {
         idTag: true,
@@ -624,8 +747,12 @@ export class AdminController {
    * For the "Filter by OCPP Operation" UI (unique list of operations)
    */
   @Get('ocpp/operations')
-  async getOcppOperations() {
+  async getOcppOperations(@Req() req: Request) {
+    const scope = await this.getAccountScope(req);
     const rows = await this.prisma.ocppMessageLog.findMany({
+      where: scope.accountIds
+        ? { charger: { location: { accountId: { in: scope.accountIds } } } }
+        : {},
       distinct: ['operation'],
       select: { operation: true },
       orderBy: { operation: 'asc' },
@@ -641,17 +768,22 @@ export class AdminController {
    */
   @Get('chargers/:chargerId/messages')
   async getChargerMessages(
+    @Req() req: Request,
     @Param('chargerId') chargerId: string,
     @Query('take') take?: string,
     @Query('skip') skip?: string,
     @Query('operation') operation?: string,
   ) {
+    const scope = await this.getAccountScope(req);
     const charger = await this.prisma.charger.findUnique({
       where: { chargerId },
-      select: { id: true, chargerId: true },
+      select: { id: true, chargerId: true, locationId: true, location: { select: { accountId: true } } },
     });
 
     if (!charger) return { total: 0, items: [] };
+    if (scope.accountIds && (!charger.location?.accountId || !scope.accountIds.includes(charger.location.accountId))) {
+      return { total: 0, items: [] };
+    }
 
     const takeN = Math.min(Math.max(Number(take ?? 50), 1), 200);
     const skipN = Math.max(Number(skip ?? 0), 0);
@@ -695,9 +827,17 @@ export class AdminController {
    * Remote command status (for QR start/stop visibility)
    */
   @Get('remote-commands')
-  async listRemoteCommands(@Query('chargerId') chargerId?: string) {
+  async listRemoteCommands(@Req() req: Request, @Query('chargerId') chargerId?: string) {
+    const scope = await this.getAccountScope(req);
     const where = chargerId
-      ? { charger: { chargerId: String(chargerId) } }
+      ? {
+          charger: {
+            chargerId: String(chargerId),
+            ...(scope.accountIds ? { location: { accountId: { in: scope.accountIds } } } : {}),
+          },
+        }
+      : scope.accountIds
+      ? { charger: { location: { accountId: { in: scope.accountIds } } } }
       : {};
 
     return this.prisma.remoteCommand.findMany({
@@ -711,8 +851,10 @@ export class AdminController {
   // ===== Drivers + RFID fobs (admin) =====
 
   @Get('drivers')
-  async listDrivers() {
+  async listDrivers(@Req() req: Request) {
+    const scope = await this.getAccountScope(req);
     return this.prisma.driver.findMany({
+      where: scope.accountIds ? { accountId: { in: scope.accountIds } } : {},
       orderBy: { createdAt: 'desc' },
       include: { fobs: true },
     });
@@ -724,13 +866,27 @@ export class AdminController {
     const cached = this.handleIdempotencyResult(idem);
     if (cached) return cached;
 
+    const scope = await this.getAccountScope(req);
     const name = String(body.name ?? '').trim();
     if (!name) return { ok: false, error: 'name is required' };
 
     const email = body.email ? String(body.email).trim() : null;
+    let accountId: number | null = scope.accountId ?? null;
+    if (body.accountId !== undefined) {
+      const accountIdNum = Number(body.accountId);
+      if (!Number.isFinite(accountIdNum)) return { ok: false, error: 'accountId is invalid' };
+      if (scope.accountIds && !scope.accountIds.includes(accountIdNum)) {
+        return { ok: false, error: 'accountId not in scope' };
+      }
+      accountId = accountIdNum;
+    }
 
     const driver = await this.prisma.driver.create({
-      data: { name, email: email || null },
+      data: {
+        name,
+        email: email || null,
+        ...(accountId ? { accountId } : {}),
+      },
     });
 
     await this.logAction(req, 'driver.create', 'Driver', String(driver.id), { name, email });
@@ -740,12 +896,16 @@ export class AdminController {
   }
 
   @Get('rfid-fobs')
-  async listFobs(@Query('active') active?: string) {
+  async listFobs(@Req() req: Request, @Query('active') active?: string) {
+    const scope = await this.getAccountScope(req);
     const activeFilter =
       active === undefined ? undefined : String(active).toLowerCase() === 'true';
 
     return this.prisma.rfidFob.findMany({
-      where: activeFilter === undefined ? {} : { active: activeFilter },
+      where: {
+        ...(activeFilter === undefined ? {} : { active: activeFilter }),
+        ...(scope.accountIds ? { driver: { accountId: { in: scope.accountIds } } } : {}),
+      },
       orderBy: { createdAt: 'desc' },
       include: { driver: true },
     });
@@ -757,6 +917,7 @@ export class AdminController {
     const cached = this.handleIdempotencyResult(idem);
     if (cached) return cached;
 
+    const scope = await this.getAccountScope(req);
     const uid = String(body.uid ?? '').trim();
     if (!uid) return { ok: false, error: 'uid is required' };
 
@@ -764,12 +925,19 @@ export class AdminController {
     const driverId =
       body.driverId === undefined ? undefined : Number(body.driverId);
 
-    if (Number.isFinite(driverId)) {
+    if (!Number.isFinite(driverId)) {
+      if (scope.accountIds) {
+        return { ok: false, error: 'driverId is required for this account' };
+      }
+    } else {
       const driver = await this.prisma.driver.findUnique({
         where: { id: driverId },
-        select: { id: true },
+        select: { id: true, accountId: true },
       });
       if (!driver) return { ok: false, error: 'driverId not found' };
+      if (scope.accountIds && (!driver.accountId || !scope.accountIds.includes(driver.accountId))) {
+        return { ok: false, error: 'driverId not in account scope' };
+      }
     }
 
     const fob = await this.prisma.rfidFob.create({
@@ -793,25 +961,48 @@ export class AdminController {
     @Body() body: AssignFobDto,
     @Req() req: Request,
   ) {
+    const scope = await this.getAccountScope(req);
     const fobId = Number(id);
     if (!Number.isFinite(fobId)) return { ok: false, error: 'invalid fob id' };
 
-    const driverId =
+    const driverIdValue =
       body.driverId === null
         ? null
         : body.driverId === undefined
         ? undefined
         : Number(body.driverId);
 
+    if (scope.accountIds) {
+      const fob = await this.prisma.rfidFob.findUnique({
+        where: { id: fobId },
+        include: { driver: { select: { accountId: true } } },
+      });
+      const accountId = fob?.driver?.accountId ?? null;
+      if (!accountId || !scope.accountIds.includes(accountId)) {
+        return { ok: false, error: 'fob not in account scope' };
+      }
+    }
+
+    if (driverIdValue !== undefined && driverIdValue !== null) {
+      const driver = await this.prisma.driver.findUnique({
+        where: { id: driverIdValue },
+        select: { id: true, accountId: true },
+      });
+      if (!driver) return { ok: false, error: 'driverId not found' };
+      if (scope.accountIds && (!driver.accountId || !scope.accountIds.includes(driver.accountId))) {
+        return { ok: false, error: 'driverId not in account scope' };
+      }
+    }
+
     const fob = await this.prisma.rfidFob.update({
       where: { id: fobId },
       data: {
-        driverId: driverId === null ? null : driverId,
+        driverId: driverIdValue === null ? null : driverIdValue,
       },
       include: { driver: true },
     });
 
-    await this.logAction(req, 'rfid.assign', 'RfidFob', String(fob.id), { driverId });
+    await this.logAction(req, 'rfid.assign', 'RfidFob', String(fob.id), { driverId: driverIdValue });
     return { ok: true, fob };
   }
 
@@ -821,8 +1012,20 @@ export class AdminController {
     @Body() body: UpdateFobDto,
     @Req() req: Request,
   ) {
+    const scope = await this.getAccountScope(req);
     const fobId = Number(id);
     if (!Number.isFinite(fobId)) return { ok: false, error: 'invalid fob id' };
+
+    if (scope.accountIds) {
+      const fob = await this.prisma.rfidFob.findUnique({
+        where: { id: fobId },
+        include: { driver: { select: { accountId: true } } },
+      });
+      const accountId = fob?.driver?.accountId ?? null;
+      if (!accountId || !scope.accountIds.includes(accountId)) {
+        return { ok: false, error: 'fob not in account scope' };
+      }
+    }
 
     const fob = await this.prisma.rfidFob.update({
       where: { id: fobId },
@@ -929,8 +1132,10 @@ export class AdminController {
   }
 
   @Get('locations')
-  async listLocations() {
+  async listLocations(@Req() req: Request) {
+    const scope = await this.getAccountScope(req);
     return this.prisma.location.findMany({
+      where: scope.accountIds ? { accountId: { in: scope.accountIds } } : {},
       orderBy: { createdAt: 'desc' },
       include: { account: true, tariff: true },
     });
@@ -955,8 +1160,12 @@ export class AdminController {
     const cached = this.handleIdempotencyResult(idem);
     if (cached) return cached;
 
+    const scope = await this.getAccountScope(req);
     const accountId = Number(body.accountId);
     if (!Number.isFinite(accountId)) return { ok: false, error: 'accountId is required' };
+    if (scope.accountIds && !scope.accountIds.includes(accountId)) {
+      return { ok: false, error: 'accountId not in scope' };
+    }
     const accountExists = await this.prisma.account.findUnique({
       where: { id: accountId },
       select: { id: true },
@@ -1028,6 +1237,17 @@ export class AdminController {
     const locationId = Number(id);
     if (!Number.isFinite(locationId)) return { ok: false, error: 'invalid location id' };
 
+    const scope = await this.getAccountScope(req);
+    if (scope.accountIds) {
+      const location = await this.prisma.location.findUnique({
+        where: { id: locationId },
+        select: { accountId: true },
+      });
+      if (!location || !scope.accountIds.includes(location.accountId)) {
+        return { ok: false, error: 'location not in account scope' };
+      }
+    }
+
     const access = body.access ? String(body.access).toUpperCase() : undefined;
     const visibility = body.visibility ? String(body.visibility).toUpperCase() : undefined;
 
@@ -1064,6 +1284,7 @@ export class AdminController {
     @Body() body: { locationId: number | null },
     @Req() req: Request,
   ) {
+    const scope = await this.getAccountScope(req);
     const locationId = body.locationId === null ? null : Number(body.locationId);
     if (locationId !== null && Number.isFinite(locationId)) {
       const location = await this.prisma.location.findUnique({
@@ -1072,6 +1293,28 @@ export class AdminController {
       });
       if (!location) return { ok: false, error: 'locationId not found' };
     }
+
+    if (scope.accountIds) {
+      const charger = await this.prisma.charger.findUnique({
+        where: { chargerId },
+        select: { id: true, location: { select: { accountId: true } } },
+      });
+      if (!charger) return { ok: false, error: 'charger not found' };
+      const currentAccountId = charger.location?.accountId ?? null;
+      if (currentAccountId && !scope.accountIds.includes(currentAccountId)) {
+        return { ok: false, error: 'charger not in account scope' };
+      }
+      if (locationId !== null) {
+        const targetLocation = await this.prisma.location.findUnique({
+          where: { id: locationId },
+          select: { accountId: true },
+        });
+        if (!targetLocation || !scope.accountIds.includes(targetLocation.accountId)) {
+          return { ok: false, error: 'locationId not in account scope' };
+        }
+      }
+    }
+
     const updated = await this.prisma.charger.update({
       where: { chargerId },
       data: { locationId },
@@ -1081,8 +1324,10 @@ export class AdminController {
   }
 
   @Get('tariffs')
-  async listTariffs() {
+  async listTariffs(@Req() req: Request) {
+    const scope = await this.getAccountScope(req);
     return this.prisma.tariff.findMany({
+      where: scope.accountIds ? { accountId: { in: scope.accountIds } } : {},
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -1091,6 +1336,7 @@ export class AdminController {
   async createTariff(
     @Body()
     body: {
+      accountId?: number;
       name: string;
       startFee: number;
       energyFee: number;
@@ -1104,6 +1350,7 @@ export class AdminController {
     const cached = this.handleIdempotencyResult(idem);
     if (cached) return cached;
 
+    const scope = await this.getAccountScope(req);
     const name = String(body.name ?? '').trim();
     if (!name) return { ok: false, error: 'name is required' };
 
@@ -1121,8 +1368,38 @@ export class AdminController {
     const vatRate = Number(body.vatRate ?? 0);
     const currency = String(body.currency ?? 'GBP').toUpperCase();
 
+    let accountId: number | null = null;
+    if (scope.accountIds) {
+      if (body.accountId !== undefined) {
+        const accountIdNum = Number(body.accountId);
+        if (!Number.isFinite(accountIdNum)) return { ok: false, error: 'accountId is invalid' };
+        if (!scope.accountIds.includes(accountIdNum)) {
+          return { ok: false, error: 'accountId not in scope' };
+        }
+        accountId = accountIdNum;
+      } else {
+        accountId = scope.accountId ?? null;
+      }
+    } else if (body.accountId !== undefined) {
+      const accountIdNum = Number(body.accountId);
+      if (!Number.isFinite(accountIdNum)) return { ok: false, error: 'accountId is invalid' };
+      accountId = accountIdNum;
+    }
+
+    if (!accountId && scope.role !== 'SUPER_ADMIN') {
+      return { ok: false, error: 'accountId is required' };
+    }
+    if (accountId) {
+      const account = await this.prisma.account.findUnique({
+        where: { id: accountId },
+        select: { id: true },
+      });
+      if (!account) return { ok: false, error: 'accountId not found' };
+    }
+
     const tariff = await this.prisma.tariff.create({
       data: {
+        accountId,
         name,
         startFee: new Prisma.Decimal(startFee),
         energyFee: new Prisma.Decimal(energyFee),
@@ -1139,8 +1416,12 @@ export class AdminController {
   }
 
   @Get('qr-codes')
-  async listQrCodes() {
+  async listQrCodes(@Req() req: Request) {
+    const scope = await this.getAccountScope(req);
     return this.prisma.qrCode.findMany({
+      where: scope.accountIds
+        ? { location: { accountId: { in: scope.accountIds } } }
+        : {},
       orderBy: { createdAt: 'desc' },
       include: { location: true, charger: true },
     });
@@ -1155,6 +1436,7 @@ export class AdminController {
     const cached = this.handleIdempotencyResult(idem);
     if (cached) return cached;
 
+    const scope = await this.getAccountScope(req);
     const code = String(body.code ?? '').trim();
     const locationId = Number(body.locationId);
     if (!code || !Number.isFinite(locationId)) {
@@ -1163,9 +1445,12 @@ export class AdminController {
 
     const location = await this.prisma.location.findUnique({
       where: { id: locationId },
-      select: { id: true },
+      select: { id: true, accountId: true },
     });
     if (!location) return { ok: false, error: 'locationId not found' };
+    if (scope.accountIds && !scope.accountIds.includes(location.accountId)) {
+      return { ok: false, error: 'locationId not in account scope' };
+    }
 
     let chargerId: number | null = null;
     if (body.chargerId !== undefined && body.chargerId !== null) {
@@ -1173,9 +1458,16 @@ export class AdminController {
       if (Number.isFinite(chargerIdNum) && chargerIdNum > 0) {
         const charger = await this.prisma.charger.findUnique({
           where: { id: chargerIdNum },
-          select: { id: true },
+          select: { id: true, location: { select: { accountId: true } } },
         });
         if (!charger) return { ok: false, error: 'chargerId not found' };
+        if (
+          scope.accountIds &&
+          charger.location?.accountId &&
+          !scope.accountIds.includes(charger.location.accountId)
+        ) {
+          return { ok: false, error: 'chargerId not in account scope' };
+        }
         chargerId = chargerIdNum;
       }
     }
@@ -1196,8 +1488,10 @@ export class AdminController {
   }
 
   @Get('driver-groups')
-  async listDriverGroups() {
+  async listDriverGroups(@Req() req: Request) {
+    const scope = await this.getAccountScope(req);
     return this.prisma.driverGroup.findMany({
+      where: scope.accountIds ? { accountId: { in: scope.accountIds } } : {},
       orderBy: { createdAt: 'desc' },
       include: { members: true },
     });
@@ -1209,10 +1503,14 @@ export class AdminController {
     const cached = this.handleIdempotencyResult(idem);
     if (cached) return cached;
 
+    const scope = await this.getAccountScope(req);
     const accountId = Number(body.accountId);
     const name = String(body.name ?? '').trim();
     if (!Number.isFinite(accountId) || !name) {
       return { ok: false, error: 'accountId and name are required' };
+    }
+    if (scope.accountIds && !scope.accountIds.includes(accountId)) {
+      return { ok: false, error: 'accountId not in scope' };
     }
 
     const account = await this.prisma.account.findUnique({
@@ -1241,6 +1539,7 @@ export class AdminController {
     @Body() body: { driverId: number },
     @Req() req: Request,
   ) {
+    const scope = await this.getAccountScope(req);
     const driverGroupId = Number(id);
     const driverId = Number(body.driverId);
     if (!Number.isFinite(driverGroupId) || !Number.isFinite(driverId)) {
@@ -1248,11 +1547,19 @@ export class AdminController {
     }
 
     const [group, driver] = await Promise.all([
-      this.prisma.driverGroup.findUnique({ where: { id: driverGroupId }, select: { id: true } }),
-      this.prisma.driver.findUnique({ where: { id: driverId }, select: { id: true } }),
+      this.prisma.driverGroup.findUnique({ where: { id: driverGroupId }, select: { id: true, accountId: true } }),
+      this.prisma.driver.findUnique({ where: { id: driverId }, select: { id: true, accountId: true } }),
     ]);
     if (!group || !driver) {
       return { ok: false, error: 'driverGroupId or driverId not found' };
+    }
+    if (scope.accountIds) {
+      if (!scope.accountIds.includes(group.accountId)) {
+        return { ok: false, error: 'driverGroupId not in scope' };
+      }
+      if (!driver.accountId || !scope.accountIds.includes(driver.accountId)) {
+        return { ok: false, error: 'driverId not in scope' };
+      }
     }
 
     const member = await this.prisma.driverGroupMember.create({

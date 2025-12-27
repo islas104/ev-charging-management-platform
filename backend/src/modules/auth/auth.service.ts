@@ -84,7 +84,15 @@ export class AuthService implements OnModuleInit {
 
   async login(email: string, password: string) {
     const user = await this.validateUser(email, password);
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    if (user.role !== AdminRole.SUPER_ADMIN && !user.accountId) {
+      throw new UnauthorizedException('Account not assigned');
+    }
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      accountId: user.accountId ?? null,
+    };
     const accessToken = await this.jwt.signAsync(payload);
 
     return {
@@ -99,14 +107,24 @@ export class AuthService implements OnModuleInit {
     return this.sanitizeUser(user);
   }
 
-  async createAdminUser(email: string, password: string, role: AdminRole) {
+  async createAdminUser(
+    email: string,
+    password: string,
+    role: AdminRole,
+    accountId?: number | null,
+  ) {
     const existing = await this.prisma.adminUser.findUnique({ where: { email } });
     if (existing) {
       return { ok: false, error: 'email already exists' };
     }
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await this.prisma.adminUser.create({
-      data: { email, passwordHash, role },
+      data: {
+        email,
+        passwordHash,
+        role,
+        ...(accountId ? { accountId } : {}),
+      },
     });
     return { ok: true, user: this.sanitizeUser(user) };
   }
@@ -163,6 +181,7 @@ export class AuthService implements OnModuleInit {
       id: user.id,
       email: user.email,
       role: user.role,
+      accountId: user.accountId ?? null,
       createdAt: user.createdAt,
     };
   }

@@ -31,6 +31,12 @@ export class CreateDriverDto {
   @IsOptional()
   @IsEmail()
   email?: string | null;
+
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  accountId?: number;
 }
 
 export class CreateFobDto {

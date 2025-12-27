@@ -27,6 +27,7 @@ model Account {
   ownerConnections    ConnectedAccount[] @relation("OwnerAccount")
   operatorLocations   Location[] @relation("OperatorAccountLocations")
   driverGroups        DriverGroup[]
+  tariffs       Tariff[]
 }
 
 model ConnectedAccount {
@@ -323,6 +324,7 @@ model DriverGroupMember {
 
 model Tariff {
   id        Int      @id @default(autoincrement())
+  accountId Int?
   name      String
   startFee  Decimal  @db.Decimal(10, 4)
   energyFee Decimal  @db.Decimal(10, 4)
@@ -332,8 +334,11 @@ model Tariff {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  account   Account? @relation(fields: [accountId], references: [id])
   locations Location[]
   driverGroupTariffs DriverGroupTariff[]
+
+  @@index([accountId])
 }
 
 model DriverGroupTariff {

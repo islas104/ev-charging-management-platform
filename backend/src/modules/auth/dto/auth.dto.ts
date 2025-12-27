@@ -1,4 +1,5 @@
-import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MinLength, IsInt, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class LoginDto {
   @IsEmail()
@@ -21,6 +22,12 @@ export class CreateAdminUserDto {
   @IsString()
   @IsIn(['ADMIN', 'SUPER_ADMIN'])
   role?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  accountId?: number;
 }
 
 export class RequestPasswordResetDto {

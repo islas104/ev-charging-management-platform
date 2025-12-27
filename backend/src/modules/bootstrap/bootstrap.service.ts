@@ -20,18 +20,19 @@ export class BootstrapService implements OnModuleInit {
       this.prisma.pricingConfig.findFirst({ orderBy: { id: 'asc' } }),
     ]);
 
-    if (!account) {
-      await this.prisma.account.create({
+    const ensuredAccount =
+      account ??
+      (await this.prisma.account.create({
         data: {
           name: 'Default Account',
           type: 'OWNER',
         },
-      });
-    }
+      }));
 
     if (!tariff) {
       await this.prisma.tariff.create({
         data: {
+          accountId: ensuredAccount.id,
           name: 'Default Tariff',
           startFee: new Prisma.Decimal('0.00'),
           energyFee: new Prisma.Decimal('0.45'),
