@@ -63,6 +63,9 @@ src/
 - Heartbeat
 - StartTransaction
 - StopTransaction
+- StatusNotification
+- Authorize
+- MeterValues
 
 Each action:
 - Is routed via a central message router
@@ -78,6 +81,7 @@ Each action:
 
 
 ws://localhost:3000/ocpp?chargerId={CHARGER_ID}
+ws://localhost:3000/ocpp?chargerId={CHARGER_ID}&token={OCPP_SHARED_SECRET}
 
 
 ### Protocol Negotiation
@@ -92,7 +96,14 @@ Sec-WebSocket-Protocol
 Supported:
 - `ocpp1.6`
 
+Easee One is supported with OCPP 1.6.
+
 ---
+
+Charger ID Format
+-----------------
+
+Charger IDs accept letters, numbers, spaces, dots, dashes, and underscores (max 64 chars).
 
 ## Charger & Transaction State
 
@@ -155,28 +166,102 @@ Response example:
   }
 ]
 ```
-APIs are intentionally unauthenticated for MVP/demo purposes.
+Admin APIs are protected by JWT auth with role-based access. Set `JWT_SECRET` and `SUPER_ADMIN_*` in `.env`.
 
 # Environment Configuration
 
 .env.example
 PORT=3000
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ev_charging
+OCPP_SHARED_SECRET=your_charger_secret
+THROTTLE_TTL=60
+THROTTLE_LIMIT=120
+HTTP_BODY_LIMIT=1mb
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+OCPP_ALLOW_UNKNOWN_IDTAG=false
+JWT_SECRET=change_me
+JWT_EXPIRES_IN=8h
+SUPER_ADMIN_EMAIL=admin@example.com
+SUPER_ADMIN_PASSWORD=change_me
+AUTH_MAX_LOGIN_ATTEMPTS=5
+AUTH_LOCK_MINUTES=15
+AUTH_RESET_TOKEN_TTL_MIN=30
+IDEMPOTENCY_TTL_HOURS=24
+REMOTE_COMMAND_TTL_SECONDS=45
+SEED_DEFAULTS=true
 
 # Running Locally
 
 ## Install Dependencies
 npm install
 
+## Run Migrations
+npx prisma migrate dev
+
 ## Start Development Server
 npm run start:dev
 
 Backend will run at:
 
-http://localhost:3000
+http://localhost:3000 (or `PORT` from `.env`)
 
 ## Health check:
 GET /health
+
+## Readiness check:
+GET /ready
+
+# Auth & Roles
+
+Admin endpoints are protected with JWT auth. Use the `Idempotency-Key` header on POSTs to make create operations safe to retry.
+
+# Public QR Endpoints
+
+GET /public/qr/:code
+POST /public/qr/:code/start
+POST /public/qr/:code/stop
+
+Login:
+POST /auth/login
+
+Current user:
+GET /auth/me
+
+Roles:
+- ADMIN
+- SUPER_ADMIN
+
+Admin users (super admin only):
+- GET /admin/users
+- POST /admin/users
+
+# Location Onboarding (Tap-like)
+
+Accounts (super admin only):
+- GET /admin/accounts
+- POST /admin/accounts
+
+Connected accounts (super admin only):
+- GET /admin/connected-accounts
+- POST /admin/connected-accounts
+
+Locations:
+- GET /admin/locations
+- POST /admin/locations
+- PUT /admin/locations/:id
+- POST /admin/chargers/:chargerId/assign-location
+
+Tariffs:
+- GET /admin/tariffs
+- POST /admin/tariffs
+
+QR codes:
+- GET /admin/qr-codes
+- POST /admin/qr-codes
+
+Public QR start:
+- GET /public/qr/:code
+- POST /public/qr/:code/start
 
 # Design Principles
 
@@ -186,7 +271,6 @@ GET /health
 - No premature infrastructure complexity
 - Easy to extend for persistence and scaling
 - Known Limitations (Intentional)
-- No authentication or authorisation
 - Single-instance only
 - No billing or tariff logic
 - These are intentional for MVP clarity.

@@ -1,190 +1,3245 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>EV Charging Platform – Admin</title>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Cloud Tunnel — Admin</title>
 
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f6f7f9;
-      padding: 2rem;
-      color: #222;
-    }
+    <style>
+      :root {
+        /* Brand / theme */
+        --bg0: #070a12;
+        --bg1: #0b1020;
+        --card: rgba(255, 255, 255, 0.06);
+        --card2: rgba(255, 255, 255, 0.04);
+        --border: rgba(148, 163, 184, 0.18);
+        --text: #e5e7eb;
+        --muted: rgba(226, 232, 240, 0.65);
 
-    h1 {
-      margin-bottom: 0.25rem;
-    }
+        --primary: #7c3aed;
+        --primary2: #22d3ee;
 
-    h2 {
-      margin-top: 3rem;
-      margin-bottom: 0.75rem;
-    }
+        --good: #22c55e;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+        --idle: rgba(226, 232, 240, 0.45);
 
-    .subtitle {
-      color: #666;
-      margin-bottom: 1.5rem;
-    }
+        --radius: 18px;
+        --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+      }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #fff;
-      border-radius: 6px;
-      overflow: hidden;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-    }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+        background:
+          radial-gradient(1200px 600px at 15% 8%, rgba(124, 58, 237, 0.22), transparent 60%),
+          radial-gradient(900px 500px at 88% 14%, rgba(34, 211, 238, 0.18), transparent 60%),
+          linear-gradient(180deg, var(--bg0), var(--bg1));
+        color: var(--text);
+      }
 
-    th, td {
-      padding: 0.75rem;
-      text-align: left;
-      border-bottom: 1px solid #eee;
-      font-size: 0.9rem;
-      white-space: nowrap;
-    }
+      a { color: inherit; }
 
-    th {
-      background: #fafafa;
-      font-weight: 600;
-      color: #444;
-    }
+      /* --- App shell --- */
+      .shell {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        min-height: 100vh;
+      }
 
-    tr:last-child td {
-      border-bottom: none;
-    }
+      /* --- Sidebar --- */
+      aside {
+        padding: 18px 16px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        border-right: 1px solid rgba(148, 163, 184, 0.12);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+          rgba(5, 7, 14, 0.5);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
 
-    .badge {
-      padding: 0.2rem 0.5rem;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      display: inline-block;
-    }
+      .side-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 10px 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+      }
 
-    .ok {
-      background: #e6f4ea;
-      color: #137333;
-    }
+      .brand-logo {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        object-fit: cover;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        display: block;
+      }
 
-    .warn {
-      background: #fce8e6;
-      color: #a50e0e;
-    }
+      .brand-name {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.05;
+      }
 
-    .muted {
-      color: #888;
-      font-size: 0.8rem;
-    }
+      .brand-name strong {
+        font-weight: 950;
+        letter-spacing: -0.3px;
+      }
+      .brand-name span {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 800;
+      }
 
-    footer {
-      margin-top: 3rem;
-      font-size: 0.75rem;
-      color: #888;
-      text-align: center;
-    }
-  </style>
-</head>
+      .nav {
+        margin-top: 14px;
+        display: grid;
+        gap: 8px;
+      }
 
-<body>
+      .nav small {
+        color: rgba(226, 232, 240, 0.55);
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 11px;
+        margin: 10px 10px 2px;
+        display: block;
+      }
 
-  <h1>EV Charging Platform</h1>
-  <div class="subtitle">Admin Dashboard – MVP</div>
+      .nav a {
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.10);
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 850;
+        color: rgba(226, 232, 240, 0.85);
+        transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+      }
+      .nav a:hover {
+        transform: translateY(-1px);
+        background: rgba(255, 255, 255, 0.045);
+        border-color: rgba(148, 163, 184, 0.18);
+      }
 
-  <!-- ================= Chargers ================= -->
-  <h2>Connected Chargers</h2>
+      .nav a.active {
+        background:
+          linear-gradient(135deg, rgba(124, 58, 237, 0.28), rgba(34, 211, 238, 0.16));
+        border-color: rgba(124, 58, 237, 0.38);
+        color: #fff;
+        box-shadow: 0 18px 60px rgba(124, 58, 237, 0.18);
+      }
 
-  <table>
-    <thead>
-      <tr>
-        <th>Charger ID</th>
-        <th>Connected At</th>
-        <th>Registered</th>
-        <th>Last Heartbeat</th>
-      </tr>
-    </thead>
-    <tbody id="chargers"></tbody>
-  </table>
+      .nav .left {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
 
-  <!-- ================= Transactions ================= -->
-  <h2>Transactions</h2>
+      .nav .icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: rgba(226, 232, 240, 0.9);
+        font-weight: 950;
+      }
 
-  <table>
-    <thead>
-      <tr>
-        <th>Charger</th>
-        <th>OCPP Tx ID</th>
-        <th>ID Tag</th>
-        <th>Meter Start</th>
-        <th>Meter Stop</th>
-        <th>Started</th>
-        <th>Stopped</th>
-        <th>Reason</th>
-      </tr>
-    </thead>
-    <tbody id="transactions"></tbody>
-  </table>
+      .nav .badge {
+        font-size: 11px;
+        font-weight: 950;
+        color: rgba(226, 232, 240, 0.85);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 6px 10px;
+        border-radius: 999px;
+      }
 
-  <footer>
-    Cloud Tunnel · OCPP 1.6 · MVP
-  </footer>
+      .side-meta {
+        margin-top: 14px;
+        padding: 12px 12px;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(255, 255, 255, 0.03);
+        color: rgba(226, 232, 240, 0.75);
+        font-size: 12px;
+        line-height: 1.6;
+      }
 
-  <script>
-    async function loadChargers() {
-      const res = await fetch('http://localhost:3000/admin/chargers');
-      const data = await res.json();
+      .side-meta code {
+        color: #fff;
+        font-weight: 900;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        padding: 2px 6px;
+        border-radius: 8px;
+      }
 
-      const tbody = document.getElementById('chargers');
-      tbody.innerHTML = '';
+      /* --- Header --- */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 14px 18px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(7, 10, 18, 0.50);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
 
-      data.forEach(c => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${c.chargerId}</td>
-          <td class="muted">${c.connectedAt ?? '-'}</td>
-          <td>
-            <span class="badge ${c.registered ? 'ok' : 'warn'}">
-              ${c.registered ? 'Registered' : 'Pending'}
-            </span>
-          </td>
-          <td class="muted">${c.lastHeartbeatAt ?? '-'}</td>
+      main {
+        max-width: 1220px;
+        margin: 0 auto;
+        padding: 18px;
+      }
+
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .kbd {
+        font-size: 12px;
+        color: rgba(226, 232, 240, 0.62);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 999px;
+        padding: 7px 10px;
+        font-weight: 800;
+      }
+
+      .top-search {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 999px;
+        padding: 11px 12px;
+        min-width: 440px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.04);
+        box-shadow: 0 16px 50px rgba(0, 0, 0, 0.25);
+      }
+      .top-search input {
+        border: 0;
+        outline: none;
+        width: 100%;
+        font-size: 14px;
+        background: transparent;
+        color: rgba(226, 232, 240, 0.92);
+      }
+      .top-search input::placeholder { color: rgba(226, 232, 240, 0.55); }
+
+      /* --- Buttons --- */
+      .btn {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(135deg, rgba(124, 58, 237, 0.95), rgba(34, 211, 238, 0.6));
+        color: #061019;
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-weight: 950;
+        cursor: pointer;
+        transition: transform 120ms ease, filter 120ms ease;
+        box-shadow: 0 16px 50px rgba(124, 58, 237, 0.16);
+      }
+      .btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+      .btn:active { transform: translateY(0); }
+
+      .btn.secondary {
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(226, 232, 240, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: none;
+      }
+
+      .btn.icon {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      /* --- Section titles --- */
+      .section-title {
+        margin-top: 18px;
+        font-size: 30px;
+        font-weight: 980;
+        letter-spacing: -0.6px;
+      }
+      .subtext { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+      /* --- Cards / panels --- */
+      .cards {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .card, .panel {
+        border-radius: var(--radius);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+      }
+
+      .card {
+        padding: 16px;
+        min-height: 96px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: -1px;
+        border-radius: inherit;
+        background:
+          radial-gradient(600px 220px at 15% 0%, rgba(124, 58, 237, 0.18), transparent 60%),
+          radial-gradient(540px 230px at 85% 0%, rgba(34, 211, 238, 0.12), transparent 60%);
+        pointer-events: none;
+      }
+
+      .card > * { position: relative; z-index: 1; }
+
+      .card .label {
+        color: rgba(226, 232, 240, 0.70);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .card .value {
+        margin-top: 8px;
+        font-size: 44px;
+        font-weight: 980;
+        letter-spacing: -1px;
+      }
+
+      .cards-2 {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+
+      .panel { margin-top: 16px; overflow: hidden; }
+
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .panel-title {
+        font-size: 16px;
+        font-weight: 980;
+        letter-spacing: -0.2px;
+      }
+
+      /* filter pills */
+      .filter-pills {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .filter-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 900;
+        color: rgba(226, 232, 240, 0.86);
+        cursor: pointer;
+        user-select: none;
+        transition: transform 120ms ease, border-color 120ms ease;
+      }
+      .filter-pill:hover { transform: translateY(-1px); border-color: rgba(148, 163, 184, 0.26); }
+      .filter-pill .caret {
+        color: rgba(226, 232, 240, 0.55);
+        font-weight: 950;
+      }
+      .filter-pill.active {
+        background: rgba(124, 58, 237, 0.18);
+        border-color: rgba(124, 58, 237, 0.38);
+        color: #fff;
+      }
+
+      /* --- Table --- */
+      table { width: 100%; border-collapse: collapse; }
+      th, td {
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.10);
+        text-align: left;
+        font-size: 14px;
+        vertical-align: middle;
+      }
+      th {
+        color: rgba(226, 232, 240, 0.65);
+        font-weight: 900;
+        background: rgba(255, 255, 255, 0.02);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+      tr:hover td { background: rgba(255, 255, 255, 0.03); }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        font-size: 13px;
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 900;
+        color: rgba(226, 232, 240, 0.88);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--idle);
+      }
+      .pill.online .dot { background: var(--good); }
+      .pill.inuse .dot { background: #60a5fa; }
+      .pill.offline .dot { background: rgba(226, 232, 240, 0.50); }
+
+      .connectors {
+        display: inline-flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        color: rgba(226, 232, 240, 0.70);
+        font-size: 13px;
+        font-weight: 900;
+      }
+      .connector-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(226, 232, 240, 0.35);
+        display: inline-block;
+        margin-left: 6px;
+      }
+      .connector-dot.green { background: var(--good); }
+      .connector-dot.blue { background: #60a5fa; }
+      .connector-dot.red { background: var(--bad); }
+      .connector-dot.amber { background: var(--warn); }
+
+      .meta {
+        color: rgba(226, 232, 240, 0.60);
+        font-size: 12px;
+        padding: 10px 16px;
+      }
+
+      /* --- Modal --- */
+      .backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.62);
+        display: none;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 60px 18px;
+        z-index: 50;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+      }
+      .modal {
+        width: min(1100px, 100%);
+        background: rgba(7, 10, 18, 0.85);
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+      .modal-header {
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      }
+      .modal-title {
+        font-weight: 980;
+        font-size: 16px;
+      }
+      .modal-close {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255, 255, 255, 0.03);
+        color: rgba(226, 232, 240, 0.92);
+        font-size: 20px;
+        cursor: pointer;
+        padding: 6px 10px;
+        border-radius: 12px;
+      }
+      .modal-body {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        min-height: 420px;
+      }
+      .modal-side {
+        border-right: 1px solid rgba(148, 163, 184, 0.10);
+        padding: 14px 14px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .checklist {
+        display: grid;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .checklist label {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-weight: 900;
+        color: rgba(226, 232, 240, 0.88);
+      }
+      .checklist input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+      }
+      .modal-main { padding: 0; }
+      .modal-main table th, .modal-main table td { padding: 10px 12px; }
+
+      .jsonbox {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        background: rgba(2, 6, 23, 0.85);
+        color: #dbeafe;
+        padding: 12px;
+        border-radius: 14px;
+        overflow: auto;
+        max-height: 320px;
+        white-space: pre;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        padding: 12px 16px 16px;
+      }
+
+      .link {
+        color: rgba(147, 197, 253, 0.95);
+        cursor: pointer;
+        text-decoration: none;
+        font-weight: 950;
+      }
+
+      /* --- Toasts --- */
+      .toast-wrap {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        display: grid;
+        gap: 10px;
+        z-index: 200;
+        max-width: min(560px, calc(100vw - 32px));
+        pointer-events: none;
+      }
+
+      .toast {
+        pointer-events: auto;
+        background: rgba(2, 6, 23, 0.88);
+        color: rgba(226, 232, 240, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 16px;
+        padding: 12px 12px;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.40);
+        display: grid;
+        gap: 8px;
+        animation: toastIn 160ms ease-out;
+      }
+
+      .toast-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .toast-title {
+        font-weight: 980;
+        letter-spacing: -0.2px;
+        font-size: 13px;
+      }
+
+      .toast-msg {
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 13px;
+        line-height: 1.35;
+        word-break: break-word;
+      }
+
+      .toast .x {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255, 255, 255, 0.03);
+        color: rgba(226, 232, 240, 0.92);
+        border-radius: 12px;
+        padding: 4px 8px;
+        cursor: pointer;
+      }
+
+      .toast.info { border-left: 4px solid #60a5fa; }
+      .toast.success { border-left: 4px solid #22c55e; }
+      .toast.warn { border-left: 4px solid #f59e0b; }
+      .toast.error { border-left: 4px solid #ef4444; }
+
+      @keyframes toastIn {
+        from { transform: translateY(8px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+
+      /* chart sizing */
+      .chart-box { position: relative; height: 240px; }
+
+      /* Responsive */
+      @media (max-width: 1020px) {
+        .shell { grid-template-columns: 1fr; }
+        aside { position: relative; height: auto; border-right: 0; border-bottom: 1px solid rgba(148, 163, 184, 0.12); }
+        .top-search { min-width: 260px; width: 100%; }
+        .cards { grid-template-columns: 1fr; }
+        .cards-2 { grid-template-columns: 1fr; }
+        .modal-body { grid-template-columns: 1fr; }
+        .modal-side { border-right: 0; border-bottom: 1px solid rgba(148, 163, 184, 0.12); }
+        th:nth-child(3), td:nth-child(3) { display: none; }
+        .split { grid-template-columns: 1fr; }
+        .chart-box { height: 220px; }
+      }
+
+      /* --- Auth overlay --- */
+      .auth-backdrop {
+        position: fixed;
+        inset: 0;
+        background:
+          radial-gradient(800px 420px at 20% 10%, rgba(124, 58, 237, 0.22), transparent 60%),
+          rgba(2, 6, 23, 0.75);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 300;
+        backdrop-filter: blur(6px);
+      }
+      .auth-card {
+        width: min(420px, 92vw);
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(7, 10, 18, 0.85);
+        padding: 20px;
+        box-shadow: var(--shadow);
+      }
+      .auth-title {
+        font-size: 20px;
+        font-weight: 980;
+        letter-spacing: -0.3px;
+      }
+      .auth-sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .auth-field {
+        margin-top: 12px;
+        display: grid;
+        gap: 8px;
+      }
+      .auth-field label {
+        font-size: 12px;
+        color: rgba(226, 232, 240, 0.72);
+        font-weight: 900;
+      }
+      .auth-field input {
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255,255,255,0.03);
+        color: rgba(226,232,240,0.92);
+        outline: none;
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .auth-row {
+        margin-top: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .auth-msg {
+        margin-top: 10px;
+        font-size: 12px;
+        color: rgba(226, 232, 240, 0.70);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="shell">
+      <aside>
+        <div class="side-brand">
+          <img class="brand-logo" src="./assets/cloud-tunnel.png" alt="Cloud Tunnel" />
+          <div class="brand-name">
+            <strong>Cloud Tunnel</strong>
+            <span>Admin Console</span>
+          </div>
+        </div>
+
+        <div class="nav">
+          <a href="#dashboard" id="navDashboard" class="active">
+            <span class="left"><span class="icon">D</span>Dashboard</span>
+            <span class="badge">Live</span>
+          </a>
+          <a href="#chargers" id="navChargers">
+            <span class="left"><span class="icon">C</span>Chargers</span>
+            <span class="badge">Fleet</span>
+          </a>
+          <a href="#pricing" id="navPricing">
+            <span class="left"><span class="icon">£</span>Pricing</span>
+            <span class="badge">Global</span>
+          </a>
+          <a href="#analytics" id="navAnalytics">
+            <span class="left"><span class="icon">A</span>Analytics</span>
+            <span class="badge">Drivers</span>
+          </a>
+
+          <small>Management</small>
+          <a href="#accounts" id="navAccounts">
+            <span class="left"><span class="icon">◎</span>Accounts</span>
+            <span class="badge">Org</span>
+          </a>
+          <a href="#locations" id="navLocations">
+            <span class="left"><span class="icon">L</span>Locations</span>
+            <span class="badge">GPS</span>
+          </a>
+          <a href="#tariffs" id="navTariffs">
+            <span class="left"><span class="icon">T</span>Tariffs</span>
+            <span class="badge">Rates</span>
+          </a>
+          <a href="#qr" id="navQr">
+            <span class="left"><span class="icon">Q</span>QR</span>
+            <span class="badge">Stickers</span>
+          </a>
+
+          <small>Account</small>
+          <a href="#users" id="navUsers">
+            <span class="left"><span class="icon">U</span>Users</span>
+            <span class="badge">Admin</span>
+          </a>
+          <a href="#signout" id="navSignout">
+            <span class="left"><span class="icon">⤴</span>Sign out</span>
+            <span class="badge">Exit</span>
+          </a>
+        </div>
+
+        <div class="side-meta">
+          Backend: <code id="apiBase">http://localhost:3000</code><br />
+          Poll: <span id="pollSeconds">3</span>s
+        </div>
+      </aside>
+
+      <div>
+        <header>
+          <div class="row" style="flex:1;">
+            <div class="top-search" title="Search">
+              <span style="color: rgba(226, 232, 240, 0.70); font-weight: 950;">⌕</span>
+              <input id="globalSearch" placeholder="Search chargers, sites, IDs…" />
+            </div>
+          </div>
+
+          <div class="row">
+            <span class="kbd">ctrl+k</span>
+            <button class="btn secondary" id="btnRefresh">Refresh</button>
+            <button class="btn" id="btnConnect">Connect new chargers</button>
+          </div>
+        </header>
+
+        <main>
+          <!-- DASHBOARD VIEW -->
+          <section id="viewDashboard">
+            <div class="section-title">Dashboard</div>
+
+            <div class="cards">
+              <div class="card">
+                <div class="label">Online Chargers</div>
+                <div class="value" id="onlineCount">—</div>
+              </div>
+              <div class="card">
+                <div class="label">Offline Chargers</div>
+                <div class="value" id="offlineCount">—</div>
+              </div>
+              <div class="card">
+                <div class="label">Charge Locations</div>
+                <div class="value" id="locationsCount">—</div>
+              </div>
+            </div>
+
+            <div class="cards-2">
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">Faulted chargers</div>
+                    <div class="subtext">Chargers that recently reported an error</div>
+                  </div>
+                </div>
+                <div style="padding: 16px; color: rgba(226, 232, 240, 0.75);" id="faultedList">No faulted chargers</div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title">Offline chargers</div>
+                    <div class="subtext">Chargers that recently went offline</div>
+                  </div>
+                </div>
+                <div style="padding: 16px; color: rgba(226, 232, 240, 0.75);" id="offlineList">No offline chargers</div>
+              </div>
+            </div>
+
+            <!-- Revenue charts panel -->
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Revenue</div>
+                  <div class="subtext">Last 30 days (ex VAT)</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnRevenueRefresh">Refresh revenue</button>
+                </div>
+              </div>
+
+              <div class="split">
+                <div>
+                  <div class="subtext" style="margin-bottom:8px;">Daily revenue</div>
+                  <div class="chart-box">
+                    <canvas id="revDailyChart"></canvas>
+                  </div>
+                </div>
+                <div>
+                  <div class="subtext" style="margin-bottom:8px;">Revenue by location</div>
+                  <div class="chart-box">
+                    <canvas id="revByLocationChart"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <div class="meta" id="revUpdated">Revenue updated: —</div>
+            </div>
+          </section>
+
+          <!-- CHARGERS VIEW -->
+          <section id="viewChargers" style="display:none;">
+            <div class="section-title">Chargers</div>
+            <div class="subtext">Fleet overview with connector status and OCPP message drill-down.</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div class="filter-pills">
+                  <div class="filter-pill" id="pillConnectivity">＋ Connectivity <span class="caret">▾</span></div>
+                  <div class="filter-pill" id="pillConnectorStatus">＋ OCPP messages <span class="caret">▾</span></div>
+                  <div class="filter-pill" id="pillChargerStatus">＋ Charger status <span class="caret">▾</span></div>
+                  <div class="filter-pill" id="pillFirmware">＋ Firmware version <span class="caret">▾</span></div>
+                </div>
+
+                <div class="row">
+                  <button class="btn secondary icon" id="btnEditCols">⚙︎ Edit columns</button>
+                </div>
+              </div>
+
+              <div class="panel-header" style="border-bottom: 0; padding-top: 0;">
+                <div class="subtext" id="lastUpdated">Last updated: —</div>
+              </div>
+
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 320px;">Name</th>
+                      <th style="min-width: 240px;">Location</th>
+                      <th style="min-width: 220px;">Connectors</th>
+                      <th style="min-width: 180px;">Connectivity</th>
+                      <th style="min-width: 220px;">Last message</th>
+                    </tr>
+                  </thead>
+                  <tbody id="chargersTbody">
+                    <tr><td colspan="5" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- PRICING VIEW -->
+          <section id="viewPricing" style="display:none;">
+            <div class="section-title">Pricing</div>
+            <div class="subtext">Set global tariffs. Driver price is derived from base tariff + markup.</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Global tariff</div>
+                  <div class="subtext">Base tariff (ex VAT). Platform applies markup.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnPricingSave">Save</button>
+                </div>
+              </div>
+
+              <div style="padding: 16px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Base energy tariff (GBP/kWh, ex VAT)</div>
+                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px;">
+                      <input
+                        id="baseTariffInput"
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        placeholder="0.46"
+                        style="width: 260px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 18px; font-weight: 950; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
+                      />
+                      <div class="kbd">Markup: <span id="platformMarkupLabel">—</span></div>
+                    </div>
+                    <div class="subtext" style="margin-top:10px;">
+                      CPO payout is the base. Platform fee is derived from markup.
+                    </div>
+                  </div>
+
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Preview (ex VAT)</div>
+                    <div style="display:grid; gap:10px; margin-top:10px;">
+                      <div style="display:flex; justify-content:space-between; gap:10px;">
+                        <div class="subtext">Driver price / kWh</div>
+                        <div style="font-weight:980;" id="driverPriceLabel">—</div>
+                      </div>
+                      <div style="display:flex; justify-content:space-between; gap:10px;">
+                        <div class="subtext">CPO payout / kWh</div>
+                        <div style="font-weight:980;" id="payoutLabel">—</div>
+                      </div>
+                      <div style="display:flex; justify-content:space-between; gap:10px;">
+                        <div class="subtext">Platform fee / kWh</div>
+                        <div style="font-weight:980;" id="platformFeeLabel">—</div>
+                      </div>
+                    </div>
+                    <div class="subtext" style="margin-top:12px;">
+                      Values are computed from <code>/admin/pricing</code>.
+                    </div>
+                  </div>
+                </div>
+
+                <div class="meta" style="padding: 12px 0 0;">
+                  Tip: update the base tariff and click <b>Save</b>.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ANALYTICS VIEW -->
+          <section id="viewAnalytics" style="display:none;">
+            <div class="section-title">Analytics</div>
+            <div class="subtext">Driver charging activity and energy delivered.</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Driver energy distribution</div>
+                  <div class="subtext">Top 10 drivers by kWh</div>
+                </div>
+              </div>
+
+              <div class="split">
+                <div>
+                  <div class="subtext" style="margin-bottom:8px;">Energy by driver (kWh)</div>
+                  <div class="chart-box">
+                    <canvas id="analyticsEnergyChart"></canvas>
+                  </div>
+                </div>
+                <div>
+                  <div class="subtext" style="margin-bottom:8px;">Sessions by driver</div>
+                  <div class="chart-box">
+                    <canvas id="analyticsSessionsChart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Top drivers by energy</div>
+                  <div class="subtext">Last 30 days (kWh)</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnAnalyticsRefresh">Refresh analytics</button>
+                </div>
+              </div>
+
+              <div class="panel-header" style="border-bottom: 0; padding-top: 0;">
+                <div class="subtext" id="analyticsMeta">Last updated: —</div>
+              </div>
+
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">Rank</th>
+                      <th style="min-width: 240px;">Driver</th>
+                      <th style="min-width: 200px;">RFID</th>
+                      <th style="min-width: 160px;">Sessions</th>
+                      <th style="min-width: 180px;">Energy (kWh)</th>
+                      <th style="min-width: 220px;">Last session</th>
+                    </tr>
+                  </thead>
+                  <tbody id="analyticsTbody">
+                    <tr><td colspan="6" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ACCOUNTS VIEW -->
+          <section id="viewAccounts" style="display:none;">
+            <div class="section-title">Accounts</div>
+            <div class="subtext">Create accounts and connected accounts (super admin only).</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Create account</div>
+                  <div class="subtext">Owner or operator account.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateAccount">Create account</button>
+                </div>
+              </div>
+
+              <div style="padding: 16px;">
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Name</div>
+                    <input id="accountNameInput" placeholder="Company Ltd" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Type</div>
+                    <select id="accountTypeInput" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;">
+                      <option value="OWNER">OWNER</option>
+                      <option value="OPERATOR">OPERATOR</option>
+                    </select>
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Email</div>
+                    <input id="accountEmailInput" placeholder="ops@example.com" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Connected accounts</div>
+                  <div class="subtext">Link operator to owner and set service fee.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateConnected">Link accounts</button>
+                </div>
+              </div>
+              <div style="padding:16px;">
+                <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Operator Account ID</div>
+                    <input id="connectedOperatorInput" list="accountList" placeholder="1" type="number" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Owner Account ID</div>
+                    <input id="connectedOwnerInput" list="accountList" placeholder="2" type="number" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Service Fee %</div>
+                    <input id="connectedFeeInput" placeholder="0.10" type="number" step="0.01" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Accounts</div>
+                  <div class="subtext">All accounts in the system.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnAccountsRefresh">Refresh</button>
+                </div>
+              </div>
+              <div class="panel-header" style="border-bottom:0; padding-top:0;">
+                <div class="subtext" id="accountsMeta">Last updated: —</div>
+              </div>
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">ID</th>
+                      <th style="min-width: 240px;">Name</th>
+                      <th style="min-width: 140px;">Type</th>
+                      <th style="min-width: 220px;">Email</th>
+                      <th style="min-width: 220px;">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody id="accountsTbody">
+                    <tr><td colspan="5" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- LOCATIONS VIEW -->
+          <section id="viewLocations" style="display:none;">
+            <div class="section-title">Locations</div>
+            <div class="subtext">Create locations and assign tariffs/chargers.</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Create location</div>
+                  <div class="subtext">GPS coordinates required.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateLocation">Create location</button>
+                </div>
+              </div>
+              <div style="padding:16px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Account ID</div>
+                    <input id="locationAccountInput" list="accountList" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Name</div>
+                    <input id="locationNameInput" placeholder="Main Depot" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Address</div>
+                    <input id="locationAddressInput" placeholder="1 High Street, London" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Tariff ID</div>
+                    <input id="locationTariffInput" list="tariffList" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Latitude</div>
+                    <input id="locationLatInput" placeholder="51.5074" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Longitude</div>
+                    <input id="locationLngInput" placeholder="-0.1278" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Locations</div>
+                  <div class="subtext">All locations with tariff.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnLocationsRefresh">Refresh</button>
+                </div>
+              </div>
+              <div class="panel-header" style="border-bottom:0; padding-top:0;">
+                <div class="subtext" id="locationsMeta">Last updated: —</div>
+              </div>
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">ID</th>
+                      <th style="min-width: 240px;">Name</th>
+                      <th style="min-width: 180px;">Account</th>
+                      <th style="min-width: 160px;">Tariff</th>
+                      <th style="min-width: 220px;">GPS</th>
+                    </tr>
+                  </thead>
+                  <tbody id="locationsTbody">
+                    <tr><td colspan="5" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- TARIFFS VIEW -->
+          <section id="viewTariffs" style="display:none;">
+            <div class="section-title">Tariffs</div>
+            <div class="subtext">Create pricing models for locations.</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Create tariff</div>
+                  <div class="subtext">Start fee + energy fee + idle fee.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateTariff">Create tariff</button>
+                </div>
+              </div>
+              <div style="padding:16px;">
+                <div style="display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Name</div>
+                    <input id="tariffNameInput" placeholder="Public tariff" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Start fee</div>
+                    <input id="tariffStartInput" type="number" step="0.01" placeholder="0.50" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Energy fee / kWh</div>
+                    <input id="tariffEnergyInput" type="number" step="0.01" placeholder="0.49" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Idle fee / h</div>
+                    <input id="tariffIdleInput" type="number" step="0.01" placeholder="2.00" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">VAT %</div>
+                    <input id="tariffVatInput" type="number" step="0.01" placeholder="0.20" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;" id="tariffAccountCard">
+                    <div class="label">Account ID</div>
+                    <input id="tariffAccountInput" list="accountList" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Tariffs</div>
+                  <div class="subtext">All pricing models.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnTariffsRefresh">Refresh</button>
+                </div>
+              </div>
+              <div class="panel-header" style="border-bottom:0; padding-top:0;">
+                <div class="subtext" id="tariffsMeta">Last updated: —</div>
+              </div>
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">ID</th>
+                      <th style="min-width: 120px;">Account</th>
+                      <th style="min-width: 220px;">Name</th>
+                      <th style="min-width: 140px;">Start</th>
+                      <th style="min-width: 140px;">Energy</th>
+                      <th style="min-width: 140px;">Idle</th>
+                      <th style="min-width: 140px;">VAT</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tariffsTbody">
+                    <tr><td colspan="7" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- QR VIEW -->
+          <section id="viewQr" style="display:none;">
+            <div class="section-title">QR Stickers</div>
+            <div class="subtext">Generate and attach QR codes to chargers.</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Create QR code</div>
+                  <div class="subtext">Link to location + charger.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateQr">Create QR</button>
+                </div>
+              </div>
+              <div style="padding:16px;">
+                <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Code</div>
+                    <input id="qrCodeInput" placeholder="QR-001" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Location ID</div>
+                    <input id="qrLocationInput" list="locationList" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Charger ID</div>
+                    <input id="qrChargerInput" list="chargerList" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Connector</div>
+                    <input id="qrConnectorInput" type="number" placeholder="1" style="margin-top:10px; width:100%; padding:12px 14px; border-radius:14px; border:1px solid rgba(148,163,184,0.18); font-size:14px; font-weight:900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">QR codes</div>
+                  <div class="subtext">Active QR stickers.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnQrRefresh">Refresh</button>
+                </div>
+              </div>
+              <div class="panel-header" style="border-bottom:0; padding-top:0;">
+                <div class="subtext" id="qrMeta">Last updated: —</div>
+              </div>
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 100px;">Code</th>
+                      <th style="min-width: 200px;">Location</th>
+                      <th style="min-width: 160px;">Charger</th>
+                      <th style="min-width: 120px;">Connector</th>
+                    </tr>
+                  </thead>
+                  <tbody id="qrTbody">
+                    <tr><td colspan="4" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- USERS VIEW -->
+          <section id="viewUsers" style="display:none;">
+            <div class="section-title">Users</div>
+            <div class="subtext">Manage admin accounts (super admin only).</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Create admin user</div>
+                  <div class="subtext">Invite an admin or super admin.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnCreateUser">Create user</button>
+                </div>
+              </div>
+
+              <div style="padding: 16px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Email</div>
+                    <input
+                      id="userEmailInput"
+                      type="email"
+                      placeholder="admin@example.com"
+                      style="margin-top:10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 14px; font-weight: 900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
+                    />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Password</div>
+                    <input
+                      id="userPasswordInput"
+                      type="password"
+                      placeholder="At least 8 characters"
+                      style="margin-top:10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 14px; font-weight: 900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
+                    />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Role</div>
+                    <select
+                      id="userRoleInput"
+                      style="margin-top:10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 14px; font-weight: 900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
+                    >
+                      <option value="ADMIN">ADMIN</option>
+                      <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                    </select>
+                  </div>
+                  <div class="card" style="min-height:auto;" id="userAccountCard">
+                    <div class="label">Account ID</div>
+                    <input
+                      id="userAccountInput"
+                      list="accountList"
+                      type="number"
+                      placeholder="1"
+                      style="margin-top:10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 14px; font-weight: 900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
+                    />
+                  </div>
+                </div>
+                <div class="meta" style="padding: 12px 0 0;">
+                  Passwords are stored hashed in the backend.
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Admin users</div>
+                  <div class="subtext">Active admin accounts.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnUsersRefresh">Refresh</button>
+                </div>
+              </div>
+
+              <div class="panel-header" style="border-bottom: 0; padding-top: 0;">
+                <div class="subtext" id="usersMeta">Last updated: —</div>
+              </div>
+
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">ID</th>
+                      <th style="min-width: 260px;">Email</th>
+                      <th style="min-width: 180px;">Role</th>
+                      <th style="min-width: 220px;">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usersTbody">
+                    <tr><td colspan="4" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <datalist id="accountList"></datalist>
+          <datalist id="tariffList"></datalist>
+          <datalist id="locationList"></datalist>
+          <datalist id="chargerList"></datalist>
+        </main>
+      </div>
+    </div>
+
+    <!-- Auth overlay -->
+    <div class="auth-backdrop" id="authBackdrop" aria-hidden="true">
+      <div class="auth-card">
+        <div class="auth-title">Admin Sign In</div>
+        <div class="auth-sub">Use your admin account to access the console.</div>
+        <div class="auth-field">
+          <label for="authEmail">Email</label>
+          <input id="authEmail" type="email" placeholder="admin@example.com" autocomplete="username" />
+        </div>
+        <div class="auth-field">
+          <label for="authPassword">Password</label>
+          <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <div class="auth-row">
+          <button class="btn" id="btnAuthLogin">Sign in</button>
+          <button class="btn secondary" id="btnAuthClear">Clear</button>
+        </div>
+        <div class="auth-msg" id="authMessage">—</div>
+      </div>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- OCPP Messages modal -->
+    <div class="backdrop" id="messagesBackdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <div class="modal-title" id="messagesTitle">Filter by OCPP Operation</div>
+          <button class="modal-close" id="messagesClose" aria-label="Close">×</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-side">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-weight:980;">Filter by OCPP Operation</div>
+              <button class="btn secondary" id="btnOpsClear">Clear</button>
+            </div>
+            <div class="checklist" id="opsChecklist" aria-label="OCPP operations checklist">
+              <div style="color: rgba(226, 232, 240, 0.65);">Loading…</div>
+            </div>
+
+            <div style="margin-top: 12px;" class="row">
+              <button class="btn" id="btnOpsApply">Apply</button>
+              <button class="btn secondary" id="btnOpsRefresh">Refresh</button>
+            </div>
+
+            <div class="subtext" style="margin-top: 12px;">
+              Charger: <span id="selectedChargerId">—</span>
+            </div>
+          </div>
+
+          <div class="modal-main">
+            <div style="padding: 10px 16px; border-bottom: 1px solid rgba(148, 163, 184, 0.12); display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <button class="btn secondary" id="btnMsgsPrev">‹ Prev</button>
+              <button class="btn secondary" id="btnMsgsNext">Next ›</button>
+              <div class="subtext" id="msgsMeta">—</div>
+            </div>
+
+            <div style="overflow:auto; max-height: 420px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="min-width: 180px;">OCPP Operation</th>
+                    <th style="min-width: 260px;">Message</th>
+                    <th style="min-width: 260px;">Response</th>
+                  </tr>
+                </thead>
+                <tbody id="messagesTbody">
+                  <tr><td colspan="3" style="color: rgba(226, 232, 240, 0.65);">Select a charger…</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="split" id="msgDetails" style="display:none;">
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between; margin-bottom:8px;">
+                  <div style="font-weight:980;">Message</div>
+                  <button class="btn secondary" id="btnCopyMsg">Copy</button>
+                </div>
+                <div class="jsonbox" id="msgJson">—</div>
+              </div>
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between; margin-bottom:8px;">
+                  <div style="font-weight:980;">Response</div>
+                  <button class="btn secondary" id="btnCopyRes">Copy</button>
+                </div>
+                <div class="jsonbox" id="resJson">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <script>
+      const API_BASE = 'http://localhost:3001';
+      const POLL_MS = 3000;
+      const ONLINE_WINDOW_SECONDS = 120;
+
+      const AUTH_TOKEN_KEY = 'ct_admin_token_v1';
+      const STORAGE_KEY = 'ct_admin_ui_v1';
+
+      const els = {
+        apiBase: document.getElementById('apiBase'),
+        pollSeconds: document.getElementById('pollSeconds'),
+
+        navDashboard: document.getElementById('navDashboard'),
+        navChargers: document.getElementById('navChargers'),
+        navPricing: document.getElementById('navPricing'),
+        navAnalytics: document.getElementById('navAnalytics'),
+        navAccounts: document.getElementById('navAccounts'),
+        navLocations: document.getElementById('navLocations'),
+        navTariffs: document.getElementById('navTariffs'),
+        navQr: document.getElementById('navQr'),
+        navUsers: document.getElementById('navUsers'),
+        navSignout: document.getElementById('navSignout'),
+
+        viewDashboard: document.getElementById('viewDashboard'),
+        viewChargers: document.getElementById('viewChargers'),
+        viewPricing: document.getElementById('viewPricing'),
+        viewAnalytics: document.getElementById('viewAnalytics'),
+        viewAccounts: document.getElementById('viewAccounts'),
+        viewLocations: document.getElementById('viewLocations'),
+        viewTariffs: document.getElementById('viewTariffs'),
+        viewQr: document.getElementById('viewQr'),
+        viewUsers: document.getElementById('viewUsers'),
+
+        // pricing
+        btnPricingSave: document.getElementById('btnPricingSave'),
+        baseTariffInput: document.getElementById('baseTariffInput'),
+        platformMarkupLabel: document.getElementById('platformMarkupLabel'),
+        driverPriceLabel: document.getElementById('driverPriceLabel'),
+        payoutLabel: document.getElementById('payoutLabel'),
+        platformFeeLabel: document.getElementById('platformFeeLabel'),
+
+        globalSearch: document.getElementById('globalSearch'),
+
+        onlineCount: document.getElementById('onlineCount'),
+        offlineCount: document.getElementById('offlineCount'),
+        locationsCount: document.getElementById('locationsCount'),
+        lastUpdated: document.getElementById('lastUpdated'),
+
+        faultedList: document.getElementById('faultedList'),
+        offlineList: document.getElementById('offlineList'),
+
+        chargersTbody: document.getElementById('chargersTbody'),
+
+        btnRefresh: document.getElementById('btnRefresh'),
+        btnConnect: document.getElementById('btnConnect'),
+
+        pillConnectivity: document.getElementById('pillConnectivity'),
+        pillConnectorStatus: document.getElementById('pillConnectorStatus'),
+        pillChargerStatus: document.getElementById('pillChargerStatus'),
+        pillFirmware: document.getElementById('pillFirmware'),
+        btnEditCols: document.getElementById('btnEditCols'),
+
+        toastWrap: document.getElementById('toastWrap'),
+
+        // revenue
+        btnRevenueRefresh: document.getElementById('btnRevenueRefresh'),
+        revDailyChart: document.getElementById('revDailyChart'),
+        revByLocationChart: document.getElementById('revByLocationChart'),
+        revUpdated: document.getElementById('revUpdated'),
+
+        // analytics
+        btnAnalyticsRefresh: document.getElementById('btnAnalyticsRefresh'),
+        analyticsTbody: document.getElementById('analyticsTbody'),
+        analyticsMeta: document.getElementById('analyticsMeta'),
+        analyticsEnergyChart: document.getElementById('analyticsEnergyChart'),
+        analyticsSessionsChart: document.getElementById('analyticsSessionsChart'),
+
+        // accounts
+        btnCreateAccount: document.getElementById('btnCreateAccount'),
+        btnAccountsRefresh: document.getElementById('btnAccountsRefresh'),
+        accountsTbody: document.getElementById('accountsTbody'),
+        accountsMeta: document.getElementById('accountsMeta'),
+        accountNameInput: document.getElementById('accountNameInput'),
+        accountTypeInput: document.getElementById('accountTypeInput'),
+        accountEmailInput: document.getElementById('accountEmailInput'),
+        btnCreateConnected: document.getElementById('btnCreateConnected'),
+        connectedOperatorInput: document.getElementById('connectedOperatorInput'),
+        connectedOwnerInput: document.getElementById('connectedOwnerInput'),
+        connectedFeeInput: document.getElementById('connectedFeeInput'),
+
+        // locations
+        btnCreateLocation: document.getElementById('btnCreateLocation'),
+        btnLocationsRefresh: document.getElementById('btnLocationsRefresh'),
+        locationsTbody: document.getElementById('locationsTbody'),
+        locationsMeta: document.getElementById('locationsMeta'),
+        locationAccountInput: document.getElementById('locationAccountInput'),
+        locationNameInput: document.getElementById('locationNameInput'),
+        locationAddressInput: document.getElementById('locationAddressInput'),
+        locationTariffInput: document.getElementById('locationTariffInput'),
+        locationLatInput: document.getElementById('locationLatInput'),
+        locationLngInput: document.getElementById('locationLngInput'),
+
+        // tariffs
+        btnCreateTariff: document.getElementById('btnCreateTariff'),
+        btnTariffsRefresh: document.getElementById('btnTariffsRefresh'),
+        tariffsTbody: document.getElementById('tariffsTbody'),
+        tariffsMeta: document.getElementById('tariffsMeta'),
+        tariffNameInput: document.getElementById('tariffNameInput'),
+        tariffStartInput: document.getElementById('tariffStartInput'),
+        tariffEnergyInput: document.getElementById('tariffEnergyInput'),
+        tariffIdleInput: document.getElementById('tariffIdleInput'),
+        tariffVatInput: document.getElementById('tariffVatInput'),
+        tariffAccountInput: document.getElementById('tariffAccountInput'),
+        tariffAccountCard: document.getElementById('tariffAccountCard'),
+
+        // qr
+        btnCreateQr: document.getElementById('btnCreateQr'),
+        btnQrRefresh: document.getElementById('btnQrRefresh'),
+        qrTbody: document.getElementById('qrTbody'),
+        qrMeta: document.getElementById('qrMeta'),
+        qrCodeInput: document.getElementById('qrCodeInput'),
+        qrLocationInput: document.getElementById('qrLocationInput'),
+        qrChargerInput: document.getElementById('qrChargerInput'),
+        qrConnectorInput: document.getElementById('qrConnectorInput'),
+
+        // users
+        btnCreateUser: document.getElementById('btnCreateUser'),
+        btnUsersRefresh: document.getElementById('btnUsersRefresh'),
+        usersTbody: document.getElementById('usersTbody'),
+        usersMeta: document.getElementById('usersMeta'),
+        userEmailInput: document.getElementById('userEmailInput'),
+        userPasswordInput: document.getElementById('userPasswordInput'),
+        userRoleInput: document.getElementById('userRoleInput'),
+        userAccountInput: document.getElementById('userAccountInput'),
+        userAccountCard: document.getElementById('userAccountCard'),
+
+        // datalists
+        accountList: document.getElementById('accountList'),
+        tariffList: document.getElementById('tariffList'),
+        locationList: document.getElementById('locationList'),
+        chargerList: document.getElementById('chargerList'),
+
+        // auth
+        authBackdrop: document.getElementById('authBackdrop'),
+        authEmail: document.getElementById('authEmail'),
+        authPassword: document.getElementById('authPassword'),
+        btnAuthLogin: document.getElementById('btnAuthLogin'),
+        btnAuthClear: document.getElementById('btnAuthClear'),
+        authMessage: document.getElementById('authMessage'),
+
+        // modal
+        messagesBackdrop: document.getElementById('messagesBackdrop'),
+        messagesClose: document.getElementById('messagesClose'),
+        opsChecklist: document.getElementById('opsChecklist'),
+        btnOpsApply: document.getElementById('btnOpsApply'),
+        btnOpsClear: document.getElementById('btnOpsClear'),
+        btnOpsRefresh: document.getElementById('btnOpsRefresh'),
+        selectedChargerId: document.getElementById('selectedChargerId'),
+        messagesTbody: document.getElementById('messagesTbody'),
+        msgsMeta: document.getElementById('msgsMeta'),
+        btnMsgsPrev: document.getElementById('btnMsgsPrev'),
+        btnMsgsNext: document.getElementById('btnMsgsNext'),
+        msgDetails: document.getElementById('msgDetails'),
+        msgJson: document.getElementById('msgJson'),
+        resJson: document.getElementById('resJson'),
+        btnCopyMsg: document.getElementById('btnCopyMsg'),
+        btnCopyRes: document.getElementById('btnCopyRes'),
+      };
+
+      els.apiBase.textContent = API_BASE;
+      els.pollSeconds.textContent = String(Math.round(POLL_MS / 1000));
+
+      let chargersCache = [];
+      let selectedCharger = null;
+
+      let opsCache = [];
+      let opsSelected = new Set();
+
+      let msgsPage = { take: 25, skip: 0, total: 0, items: [] };
+      let selectedMsgId = null;
+
+      // pricing cache
+      let pricingCache = null;
+
+      // revenue cache
+      let revenueCache = null;
+      let revDailyChartInstance = null;
+      let revByLocationChartInstance = null;
+
+      // NEW: avoid spamming 404s if backend doesn't have /admin/revenue
+      let revenueEndpointAvailable = true;
+      let revenueWarnedMissing = false;
+
+      // UI state
+      let messagesPollTimer = null;
+      let connectivityFilter = 'all'; // all | online | offline
+      let overviewTimer = null;
+
+      // analytics cache
+      let analyticsCache = null;
+      let analyticsEnergyChartInstance = null;
+      let analyticsSessionsChartInstance = null;
+
+      let accountsCache = [];
+      let locationsCache = [];
+      let tariffsCache = [];
+      let qrCache = [];
+
+      // users cache
+      let usersCache = [];
+
+      // auth
+      let authUser = null;
+
+      function getAuthToken() {
+        try {
+          return localStorage.getItem(AUTH_TOKEN_KEY) || '';
+        } catch {
+          return '';
+        }
+      }
+
+      function setAuthToken(token) {
+        try {
+          localStorage.setItem(AUTH_TOKEN_KEY, token);
+        } catch { /* ignore */ }
+      }
+
+      function clearAuthToken() {
+        try {
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+        } catch { /* ignore */ }
+      }
+
+      function setAuthMessage(msg) {
+        if (els.authMessage) els.authMessage.textContent = msg || '—';
+      }
+
+      function showAuth() {
+        if (!els.authBackdrop) return;
+        els.authBackdrop.style.display = 'flex';
+        els.authBackdrop.setAttribute('aria-hidden', 'false');
+        stopOverviewPoll();
+      }
+
+      function hideAuth() {
+        if (!els.authBackdrop) return;
+        els.authBackdrop.style.display = 'none';
+        els.authBackdrop.setAttribute('aria-hidden', 'true');
+      }
+
+      function isSuperAdmin() {
+        return String(authUser?.role || '').toUpperCase() === 'SUPER_ADMIN';
+      }
+
+      function updateRoleUi() {
+        const showUsers = isSuperAdmin();
+        if (els.navAccounts) els.navAccounts.style.display = showUsers ? '' : 'none';
+        if (els.navUsers) els.navUsers.style.display = showUsers ? '' : 'none';
+        if (els.userAccountCard) els.userAccountCard.style.display = showUsers ? '' : 'none';
+        if (els.tariffAccountCard) els.tariffAccountCard.style.display = showUsers ? '' : 'none';
+        if (!showUsers && (getViewFromHash() === 'users' || getViewFromHash() === 'accounts')) {
+          location.hash = '#dashboard';
+        }
+      }
+
+      function toast(type, title, message, timeoutMs = 2600) {
+        const wrap = els.toastWrap;
+        if (!wrap) return;
+
+        const t = document.createElement('div');
+        t.className = `toast ${type || 'info'}`;
+        t.innerHTML = `
+          <div class="toast-top">
+            <div class="toast-title">${escapeHtml(title || 'Notice')}</div>
+            <button class="x" aria-label="Dismiss">✕</button>
+          </div>
+          <div class="toast-msg">${escapeHtml(message || '')}</div>
         `;
-        tbody.appendChild(tr);
+
+        const remove = () => {
+          if (t && t.parentNode) t.parentNode.removeChild(t);
+        };
+
+        t.querySelector('.x')?.addEventListener('click', remove);
+        wrap.appendChild(t);
+
+        if (timeoutMs > 0) setTimeout(remove, timeoutMs);
+      }
+
+      function loadUiState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+          const s = JSON.parse(raw);
+          if (typeof s?.connectivityFilter === 'string') connectivityFilter = s.connectivityFilter;
+          if (typeof s?.globalSearch === 'string') els.globalSearch.value = s.globalSearch;
+        } catch { /* ignore */ }
+      }
+
+      function saveUiState() {
+        try {
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              connectivityFilter,
+              globalSearch: els.globalSearch.value || '',
+            }),
+          );
+        } catch { /* ignore */ }
+      }
+
+      function fmtDate(value) {
+        if (!value) return '—';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return String(value);
+        return d.toLocaleString();
+      }
+
+      function round4(n) {
+        const x = Number(n);
+        if (!Number.isFinite(x)) return 0;
+        return Math.round((x + Number.EPSILON) * 10000) / 10000;
+      }
+
+      function updateDatalist(listEl, items, labelFn, valueFn) {
+        if (!listEl) return;
+        listEl.innerHTML = '';
+
+        const frag = document.createDocumentFragment();
+        (Array.isArray(items) ? items : []).forEach((item) => {
+          const option = document.createElement('option');
+          const value = valueFn ? valueFn(item) : item?.id;
+          option.value = value !== undefined && value !== null ? String(value) : '';
+          option.textContent = labelFn ? labelFn(item) : option.value;
+          frag.appendChild(option);
+        });
+
+        listEl.appendChild(frag);
+      }
+
+      function fmtMoneyPerKwh(n, currency = 'GBP') {
+        const x = Number(n);
+        if (!Number.isFinite(x)) return '—';
+        const sym = currency === 'GBP' ? '£' : `${currency} `;
+        return `${sym}${x.toFixed(4)}/kWh`;
+      }
+
+      function fmtMoney2(n, currency = 'GBP') {
+        const x = Number(n);
+        if (!Number.isFinite(x)) return '—';
+        const sym = currency === 'GBP' ? '£' : `${currency} `;
+        return `${sym}${x.toFixed(2)}`;
+      }
+
+      function getViewFromHash() {
+        const h = (location.hash || '#dashboard').replace('#', '').trim();
+        if (h.startsWith('chargers')) return 'chargers';
+        if (h.startsWith('pricing')) return 'pricing';
+        if (h.startsWith('analytics')) return 'analytics';
+        if (h.startsWith('accounts')) return 'accounts';
+        if (h.startsWith('locations')) return 'locations';
+        if (h.startsWith('tariffs')) return 'tariffs';
+        if (h.startsWith('qr')) return 'qr';
+        if (h.startsWith('users')) return 'users';
+        return 'dashboard';
+      }
+
+      function setActiveNav(view) {
+        els.navDashboard.classList.toggle('active', view === 'dashboard');
+        els.navChargers.classList.toggle('active', view === 'chargers');
+        els.navPricing.classList.toggle('active', view === 'pricing');
+        els.navAnalytics.classList.toggle('active', view === 'analytics');
+        els.navAccounts.classList.toggle('active', view === 'accounts');
+        els.navLocations.classList.toggle('active', view === 'locations');
+        els.navTariffs.classList.toggle('active', view === 'tariffs');
+        els.navQr.classList.toggle('active', view === 'qr');
+        els.navUsers.classList.toggle('active', view === 'users');
+
+        els.viewDashboard.style.display = view === 'dashboard' ? '' : 'none';
+        els.viewChargers.style.display = view === 'chargers' ? '' : 'none';
+        els.viewPricing.style.display = view === 'pricing' ? '' : 'none';
+        els.viewAnalytics.style.display = view === 'analytics' ? '' : 'none';
+        els.viewAccounts.style.display = view === 'accounts' ? '' : 'none';
+        els.viewLocations.style.display = view === 'locations' ? '' : 'none';
+        els.viewTariffs.style.display = view === 'tariffs' ? '' : 'none';
+        els.viewQr.style.display = view === 'qr' ? '' : 'none';
+        els.viewUsers.style.display = view === 'users' ? '' : 'none';
+      }
+
+      function statusToDotClass(status) {
+        const s = String(status || '').toLowerCase();
+        if (!s) return '';
+        if (s.includes('fault')) return 'red';
+        if (s.includes('charging')) return 'blue';
+        if (s.includes('available')) return 'green';
+        if (s.includes('unavailable')) return 'amber';
+        if (s.includes('occupied')) return 'blue';
+        return '';
+      }
+
+      function connectorCell(connectors) {
+        if (!Array.isArray(connectors) || connectors.length === 0) return '—';
+        const parts = connectors.map(c => {
+          const cls = statusToDotClass(c.status);
+          return `${c.connectorId}: <span class="connector-dot ${cls}"></span>`;
+        });
+        return parts.join(' &nbsp; ');
+      }
+
+      function matchesGlobalSearch(c) {
+        const q = (els.globalSearch.value || '').trim().toLowerCase();
+        if (q) {
+          const hay = `${c.name ?? ''} ${c.chargerId ?? ''} ${c.location ?? ''}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        if (connectivityFilter !== 'all') {
+          if (String(c.connectivity || '').toLowerCase() !== connectivityFilter) return false;
+        }
+        return true;
+      }
+
+      function renderConnectivityPill() {
+        const label =
+          connectivityFilter === 'online' ? 'Connectivity: Online' :
+          connectivityFilter === 'offline' ? 'Connectivity: Offline' :
+          'Connectivity: All';
+
+        els.pillConnectivity.innerHTML = `${label} <span class="caret">▾</span>`;
+        els.pillConnectivity.classList.toggle('active', connectivityFilter !== 'all');
+      }
+
+      function renderChargers() {
+        renderConnectivityPill();
+
+        const rows = chargersCache.filter(matchesGlobalSearch);
+
+        if (!rows.length) {
+          els.chargersTbody.innerHTML = `<tr><td colspan="5" style="color: var(--muted);">No chargers match your filters.</td></tr>`;
+          return;
+        }
+
+        els.chargersTbody.innerHTML = rows.map(c => {
+          const isOnline = String(c.connectivity).toLowerCase() === 'online';
+          const isInUse = isOnline && (c.connectors || []).some(x => {
+            const status = String(x.status || '').toLowerCase();
+            return status.includes('charging') || status.includes('occupied');
+          });
+          const pillClass = isOnline ? (isInUse ? 'inuse' : 'online') : 'offline';
+          const pillLabel = isOnline ? (isInUse ? 'In use' : 'Online') : 'Offline';
+
+          const click = `data-charger="${String(c.chargerId).replace(/"/g, '&quot;')}"`;
+
+          return `
+            <tr ${click} style="cursor:pointer;">
+              <td>
+                <div style="font-weight: 900;">${c.name ?? '—'}</div>
+                <div class="subtext">ID: ${c.chargerId ?? '—'}</div>
+              </td>
+              <td>${c.location ?? '—'}</td>
+              <td><span class="connectors">${connectorCell(c.connectors)}</span></td>
+              <td>
+                <span class="pill ${pillClass}">
+                  <span class="dot"></span>
+                  ${pillLabel}
+                </span>
+              </td>
+              <td>${fmtDate(c.lastMessageAt)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function renderDashboardLists() {
+        const faulted = chargersCache.filter(c =>
+          (c.connectors || []).some(x => String(x.status || '').toLowerCase().includes('fault')),
+        );
+
+        const offline = chargersCache.filter(c => String(c.connectivity || '').toLowerCase() === 'offline');
+
+        els.faultedList.innerHTML = faulted.length
+          ? `<div style="display:grid;gap:8px;">${faulted.map(c => `<div><span style="font-weight:900;">${escapeHtml(c.name)}</span><div class="subtext">ID: ${escapeHtml(c.chargerId)}</div></div>`).join('')}</div>`
+          : 'No faulted chargers';
+
+        els.offlineList.innerHTML = offline.length
+          ? `<div style="display:grid;gap:8px;">${offline.map(c => `<div><span style="font-weight:900;">${escapeHtml(c.name)}</span><div class="subtext">ID: ${escapeHtml(c.chargerId)}</div></div>`).join('')}</div>`
+          : 'No offline chargers';
+      }
+
+      async function fetchJson(url, opts) {
+        const token = getAuthToken();
+        const init = opts || {};
+        const headers = new Headers(init.headers || {});
+        if (token && !headers.has('Authorization')) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
+        init.headers = headers;
+
+        const res = await fetch(url, init);
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            clearAuthToken();
+            showAuth();
+            throw new Error('Unauthorized');
+          }
+          const text = await res.text().catch(() => '');
+          throw new Error(`${res.status} ${res.statusText}${text ? ` — ${text}` : ''}`);
+        }
+        return res.json();
+      }
+
+      function destroyChart(ch) {
+        try { ch?.destroy?.(); } catch { /* ignore */ }
+      }
+
+      function renderRevenueCharts() {
+        if (!els.revDailyChart || !els.revByLocationChart) return;
+        if (!revenueCache) return;
+        if (typeof Chart === 'undefined') return;
+
+        const r = revenueCache;
+        const currency = r.currency || 'GBP';
+
+        const daily = Array.isArray(r.daily) ? r.daily : [];
+        const byLocation = Array.isArray(r.byLocation) ? r.byLocation : [];
+
+        const dailyLabels = daily.map(x => String(x.date ?? ''));
+        const dailyValues = daily.map(x => Number(x.revenue ?? 0));
+
+        destroyChart(revDailyChartInstance);
+        revDailyChartInstance = new Chart(els.revDailyChart, {
+          type: 'line',
+          data: {
+            labels: dailyLabels,
+            datasets: [{
+              label: 'Revenue',
+              data: dailyValues,
+              borderColor: '#2563eb',
+              backgroundColor: 'rgba(37, 99, 235, 0.12)',
+              fill: true,
+              tension: 0.25,
+              pointRadius: 2,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => ` ${fmtMoney2(ctx.parsed.y, currency)}`,
+                },
+              },
+            },
+            scales: {
+              y: {
+                ticks: { callback: (v) => fmtMoney2(v, currency) },
+                grid: { color: 'rgba(148, 163, 184, 0.22)' },
+              },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+
+        const top = byLocation
+          .map(x => ({ location: x.location ?? '—', revenue: Number(x.revenue ?? 0) }))
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 12);
+
+        const locLabels = top.map(x => x.location);
+        const locValues = top.map(x => x.revenue);
+
+        destroyChart(revByLocationChartInstance);
+        revByLocationChartInstance = new Chart(els.revByLocationChart, {
+          type: 'bar',
+          data: {
+            labels: locLabels,
+            datasets: [{
+              label: 'Revenue',
+              data: locValues,
+              backgroundColor: 'rgba(34, 197, 94, 0.75)',
+              borderColor: 'rgba(34, 197, 94, 1)',
+              borderWidth: 1,
+              borderRadius: 8,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => ` ${fmtMoney2(ctx.parsed.y, currency)}`,
+                },
+              },
+            },
+            scales: {
+              y: {
+                ticks: { callback: (v) => fmtMoney2(v, currency) },
+                grid: { color: 'rgba(148, 163, 184, 0.22)' },
+              },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+
+        if (els.revUpdated) {
+          els.revUpdated.textContent = `Revenue updated: ${new Date().toLocaleString()}`;
+        }
+      }
+
+      async function loadRevenue(range = '30d') {
+        if (!revenueEndpointAvailable) return;
+
+        try {
+          revenueCache = await fetchJson(`${API_BASE}/admin/revenue?range=${encodeURIComponent(range)}`);
+          renderRevenueCharts();
+        } catch (err) {
+          const msg = String(err?.message || err || '');
+          const is404 = msg.includes('404') || msg.toLowerCase().includes('not found');
+
+          if (is404) {
+            revenueEndpointAvailable = false;
+            if (!revenueWarnedMissing) {
+              revenueWarnedMissing = true;
+              toast(
+                'warn',
+                'Revenue charts',
+                'Backend endpoint missing: GET /admin/revenue. Charts are disabled until it is implemented.',
+                6000,
+              );
+            }
+            return;
+          }
+
+          throw err;
+        }
+      }
+
+      async function refreshOverviewAndChargers() {
+        const [overview, chargers] = await Promise.all([
+          fetchJson(`${API_BASE}/admin/overview?onlineWindowSeconds=${ONLINE_WINDOW_SECONDS}`),
+          fetchJson(`${API_BASE}/admin/chargers-view?onlineWindowSeconds=${ONLINE_WINDOW_SECONDS}`),
+        ]);
+
+        els.onlineCount.textContent = overview?.totals?.onlineChargers ?? '—';
+        els.offlineCount.textContent = overview?.totals?.offlineChargers ?? '—';
+        els.locationsCount.textContent = overview?.totals?.chargeLocations ?? '—';
+
+        chargersCache = Array.isArray(chargers) ? chargers : [];
+
+        renderChargers();
+        renderDashboardLists();
+        updateDatalist(
+          els.chargerList,
+          chargersCache,
+          (c) => `${c.id} — ${c.chargerId}`,
+        );
+
+        els.lastUpdated.textContent = `Last updated: ${new Date().toLocaleString()}`;
+
+        loadRevenue('30d').catch(err => toast('warn', 'Revenue charts', String(err?.message || err)));
+      }
+
+      function renderPricing() {
+        const p = pricingCache;
+        if (!p) {
+          els.platformMarkupLabel.textContent = '—';
+          els.driverPriceLabel.textContent = '—';
+          els.payoutLabel.textContent = '—';
+          els.platformFeeLabel.textContent = '—';
+          return;
+        }
+
+        const currency = p.currency || 'GBP';
+        const base = Number(p.baseEnergyGbpKwh);
+        const markup = Number(p.platformMarkup);
+
+        if (Number.isFinite(markup)) {
+          els.platformMarkupLabel.textContent = `${Math.round(markup * 100)}%`;
+        } else {
+          els.platformMarkupLabel.textContent = '—';
+        }
+
+        const driver = p.driverEnergyGbpKwhExVat ?? round4(base * (1 + markup));
+        const fee = p.platformFeeGbpKwhExVat ?? round4(base * markup);
+
+        els.driverPriceLabel.textContent = fmtMoneyPerKwh(driver, currency);
+        els.payoutLabel.textContent = fmtMoneyPerKwh(base, currency);
+        els.platformFeeLabel.textContent = fmtMoneyPerKwh(fee, currency);
+      }
+
+      async function loadPricing() {
+        const p = await fetchJson(`${API_BASE}/admin/pricing`);
+        pricingCache = p;
+        if (els.baseTariffInput) {
+          const base = Number(p?.baseEnergyGbpKwh);
+          if (Number.isFinite(base)) els.baseTariffInput.value = String(base);
+        }
+        renderPricing();
+      }
+
+      async function savePricing() {
+        const raw = els.baseTariffInput?.value;
+        const base = Number(raw);
+
+        if (!Number.isFinite(base) || base < 0) {
+          toast('warn', 'Invalid value', 'Base tariff must be a non-negative number.');
+          return;
+        }
+
+        const res = await fetchJson(`${API_BASE}/admin/pricing`, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ baseEnergyGbpKwh: base }),
+        });
+
+        if (res?.ok === false) {
+          toast('error', 'Save failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+
+        pricingCache = res?.pricing ?? pricingCache;
+        if (res?.pricing) pricingCache = res.pricing;
+        else if (res?.ok && res?.pricing) pricingCache = res.pricing;
+
+        await loadPricing();
+
+        toast('success', 'Saved', 'Pricing updated.');
+      }
+
+      function renderAnalytics() {
+        if (!els.analyticsTbody) return;
+        const items = Array.isArray(analyticsCache?.items) ? analyticsCache.items : [];
+
+        if (!items.length) {
+          els.analyticsTbody.innerHTML = `<tr><td colspan="6" style="color: rgba(226, 232, 240, 0.65);">No driver data yet.</td></tr>`;
+          return;
+        }
+
+        els.analyticsTbody.innerHTML = items.map((it, idx) => {
+          const energy = Number(it.energyKwh ?? 0);
+          const sessions = Number(it.sessions ?? 0);
+          return `
+            <tr>
+              <td style="font-weight:980;">#${idx + 1}</td>
+              <td style="font-weight:950;">${escapeHtml(it.driverName ?? 'Unassigned')}</td>
+              <td>${escapeHtml(it.idTag ?? '—')}</td>
+              <td>${Number.isFinite(sessions) ? sessions : '—'}</td>
+              <td>${Number.isFinite(energy) ? energy.toFixed(2) : '—'}</td>
+              <td>${fmtDate(it.lastSessionAt)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function destroyChart(ch) {
+        try { ch?.destroy?.(); } catch { /* ignore */ }
+      }
+
+      function renderAnalyticsCharts() {
+        if (!analyticsCache) return;
+        if (typeof Chart === 'undefined') return;
+
+        const items = Array.isArray(analyticsCache.items) ? analyticsCache.items : [];
+        const top = items.slice(0, 10);
+
+        const labels = top.map(x => String(x.driverName ?? x.idTag ?? '—'));
+        const energy = top.map(x => Number(x.energyKwh ?? 0));
+        const sessions = top.map(x => Number(x.sessions ?? 0));
+
+        if (els.analyticsEnergyChart) {
+          destroyChart(analyticsEnergyChartInstance);
+          analyticsEnergyChartInstance = new Chart(els.analyticsEnergyChart, {
+            type: 'bar',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Energy (kWh)',
+                data: energy,
+                backgroundColor: 'rgba(124, 58, 237, 0.75)',
+                borderColor: 'rgba(124, 58, 237, 1)',
+                borderWidth: 1,
+                borderRadius: 8,
+              }],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: (ctx) => ` ${Number(ctx.parsed.y || 0).toFixed(2)} kWh`,
+                  },
+                },
+              },
+              scales: {
+                y: {
+                  ticks: { callback: (v) => `${Number(v).toFixed(0)} kWh` },
+                  grid: { color: 'rgba(148, 163, 184, 0.22)' },
+                },
+                x: { grid: { display: false } },
+              },
+            },
+          });
+        }
+
+        if (els.analyticsSessionsChart) {
+          destroyChart(analyticsSessionsChartInstance);
+          analyticsSessionsChartInstance = new Chart(els.analyticsSessionsChart, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Sessions',
+                data: sessions,
+                borderColor: '#22c55e',
+                backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                fill: true,
+                tension: 0.25,
+                pointRadius: 2,
+              }],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+              },
+              scales: {
+                y: {
+                  ticks: { callback: (v) => `${v}` },
+                  grid: { color: 'rgba(148, 163, 184, 0.22)' },
+                },
+                x: { grid: { display: false } },
+              },
+            },
+          });
+        }
+      }
+
+      async function loadAnalytics(range = '30d') {
+        const data = await fetchJson(
+          `${API_BASE}/admin/analytics/top-drivers?range=${encodeURIComponent(range)}&meterUnit=wh`,
+        );
+        analyticsCache = data;
+        if (els.analyticsMeta) {
+          els.analyticsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        }
+        renderAnalytics();
+        renderAnalyticsCharts();
+      }
+
+      function renderAccounts() {
+        if (!els.accountsTbody) return;
+        const items = Array.isArray(accountsCache) ? accountsCache : [];
+        if (!items.length) {
+          els.accountsTbody.innerHTML = `<tr><td colspan="5" style="color: rgba(226, 232, 240, 0.65);">No accounts found.</td></tr>`;
+          return;
+        }
+        els.accountsTbody.innerHTML = items.map(a => `
+          <tr>
+            <td style="font-weight:900;">${a.id}</td>
+            <td>${escapeHtml(a.name ?? '—')}</td>
+            <td>${escapeHtml(a.type ?? '—')}</td>
+            <td>${escapeHtml(a.email ?? '—')}</td>
+            <td>${fmtDate(a.createdAt)}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadAccounts() {
+        if (!isSuperAdmin()) {
+          toast('warn', 'Access denied', 'Super admin role required.');
+          return;
+        }
+        const data = await fetchJson(`${API_BASE}/admin/accounts`);
+        accountsCache = Array.isArray(data) ? data : [];
+        if (els.accountsMeta) els.accountsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        renderAccounts();
+        updateDatalist(
+          els.accountList,
+          accountsCache,
+          (a) => `${a.id} — ${a.name}`,
+        );
+      }
+
+      async function createAccount() {
+        if (!isSuperAdmin()) {
+          toast('warn', 'Access denied', 'Super admin role required.');
+          return;
+        }
+        const name = String(els.accountNameInput?.value || '').trim();
+        const type = String(els.accountTypeInput?.value || 'OWNER');
+        const email = String(els.accountEmailInput?.value || '').trim();
+        if (!name) {
+          toast('warn', 'Missing fields', 'Account name is required.');
+          return;
+        }
+        const res = await fetchJson(`${API_BASE}/admin/accounts`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ name, type, email }),
+        });
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+        if (els.accountNameInput) els.accountNameInput.value = '';
+        if (els.accountEmailInput) els.accountEmailInput.value = '';
+        toast('success', 'Account created', 'Account created.');
+        await loadAccounts();
+      }
+
+      async function createConnectedAccount() {
+        if (!isSuperAdmin()) {
+          toast('warn', 'Access denied', 'Super admin role required.');
+          return;
+        }
+        const operatorAccountId = Number(els.connectedOperatorInput?.value);
+        const ownerAccountId = Number(els.connectedOwnerInput?.value);
+        const serviceFeePercent = Number(els.connectedFeeInput?.value || 0);
+        if (!Number.isFinite(operatorAccountId) || !Number.isFinite(ownerAccountId)) {
+          toast('warn', 'Missing fields', 'Operator and owner account IDs are required.');
+          return;
+        }
+        const res = await fetchJson(`${API_BASE}/admin/connected-accounts`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ operatorAccountId, ownerAccountId, serviceFeePercent }),
+        });
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+        toast('success', 'Linked', 'Connected account created.');
+      }
+
+      function renderLocations() {
+        if (!els.locationsTbody) return;
+        const items = Array.isArray(locationsCache) ? locationsCache : [];
+        if (!items.length) {
+          els.locationsTbody.innerHTML = `<tr><td colspan="5" style="color: rgba(226, 232, 240, 0.65);">No locations found.</td></tr>`;
+          return;
+        }
+        els.locationsTbody.innerHTML = items.map(l => `
+          <tr>
+            <td style="font-weight:900;">${l.id}</td>
+            <td>${escapeHtml(l.name ?? '—')}</td>
+            <td>${escapeHtml(l.account?.name ?? l.accountId ?? '—')}</td>
+            <td>${escapeHtml(l.tariff?.name ?? '—')}</td>
+            <td>${l.latitude ?? '—'}, ${l.longitude ?? '—'}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadLocations() {
+        const data = await fetchJson(`${API_BASE}/admin/locations`);
+        locationsCache = Array.isArray(data) ? data : [];
+        if (els.locationsMeta) els.locationsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        renderLocations();
+        updateDatalist(
+          els.locationList,
+          locationsCache,
+          (l) => `${l.id} — ${l.name}`,
+        );
+      }
+
+      async function createLocation() {
+        const accountId = Number(els.locationAccountInput?.value);
+        const name = String(els.locationNameInput?.value || '').trim();
+        const address = String(els.locationAddressInput?.value || '').trim();
+        const tariffRaw = String(els.locationTariffInput?.value || '').trim();
+        const tariffId = tariffRaw ? Number(tariffRaw) : null;
+        const latitude = Number(els.locationLatInput?.value);
+        const longitude = Number(els.locationLngInput?.value);
+
+        if (!Number.isFinite(accountId) || !name || !address || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+          toast('warn', 'Missing fields', 'Account, name, address, latitude, longitude are required.');
+          return;
+        }
+
+        const res = await fetchJson(`${API_BASE}/admin/locations`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            accountId,
+            name,
+            address,
+            latitude,
+            longitude,
+            tariffId: Number.isFinite(tariffId) ? tariffId : undefined,
+          }),
+        });
+
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+
+        toast('success', 'Location created', 'Location created.');
+        await loadLocations();
+      }
+
+      function renderTariffs() {
+        if (!els.tariffsTbody) return;
+        const items = Array.isArray(tariffsCache) ? tariffsCache : [];
+        if (!items.length) {
+          els.tariffsTbody.innerHTML = `<tr><td colspan="7" style="color: rgba(226, 232, 240, 0.65);">No tariffs found.</td></tr>`;
+          return;
+        }
+        els.tariffsTbody.innerHTML = items.map(t => `
+          <tr>
+            <td style="font-weight:900;">${t.id}</td>
+            <td>${t.accountId ?? '—'}</td>
+            <td>${escapeHtml(t.name ?? '—')}</td>
+            <td>${t.startFee ?? '—'}</td>
+            <td>${t.energyFee ?? '—'}</td>
+            <td>${t.idleFee ?? '—'}</td>
+            <td>${t.vatRate ?? '—'}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadTariffs() {
+        const data = await fetchJson(`${API_BASE}/admin/tariffs`);
+        tariffsCache = Array.isArray(data) ? data : [];
+        if (els.tariffsMeta) els.tariffsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        renderTariffs();
+        updateDatalist(
+          els.tariffList,
+          tariffsCache,
+          (t) => `${t.id} — ${t.name}`,
+        );
+      }
+
+      async function createTariff() {
+        const name = String(els.tariffNameInput?.value || '').trim();
+        const startFee = Number(els.tariffStartInput?.value);
+        const energyFee = Number(els.tariffEnergyInput?.value);
+        const idleFee = Number(els.tariffIdleInput?.value);
+        const vatRate = Number(els.tariffVatInput?.value || 0);
+        const accountIdRaw = String(els.tariffAccountInput?.value || '').trim();
+        const accountId = accountIdRaw ? Number(accountIdRaw) : null;
+
+        if (!name || ![startFee, energyFee, idleFee].every(Number.isFinite)) {
+          toast('warn', 'Missing fields', 'Name, start fee, energy fee, and idle fee are required.');
+          return;
+        }
+        if (isSuperAdmin() && !Number.isFinite(accountId)) {
+          toast('warn', 'Missing fields', 'Account ID is required for tariffs.');
+          return;
+        }
+
+        const res = await fetchJson(`${API_BASE}/admin/tariffs`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            startFee,
+            energyFee,
+            idleFee,
+            vatRate,
+            accountId: Number.isFinite(accountId) ? accountId : undefined,
+          }),
+        });
+
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+
+        toast('success', 'Tariff created', 'Tariff created.');
+        if (els.tariffAccountInput) els.tariffAccountInput.value = '';
+        await loadTariffs();
+      }
+
+      function renderQr() {
+        if (!els.qrTbody) return;
+        const items = Array.isArray(qrCache) ? qrCache : [];
+        if (!items.length) {
+          els.qrTbody.innerHTML = `<tr><td colspan="4" style="color: rgba(226, 232, 240, 0.65);">No QR codes found.</td></tr>`;
+          return;
+        }
+        els.qrTbody.innerHTML = items.map(q => `
+          <tr>
+            <td style="font-weight:900;">${escapeHtml(q.code ?? '—')}</td>
+            <td>${escapeHtml(q.location?.name ?? q.locationId ?? '—')}</td>
+            <td>${escapeHtml(q.charger?.chargerId ?? '—')}</td>
+            <td>${q.connectorId ?? '—'}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadQr() {
+        const data = await fetchJson(`${API_BASE}/admin/qr-codes`);
+        qrCache = Array.isArray(data) ? data : [];
+        if (els.qrMeta) els.qrMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        renderQr();
+      }
+
+      async function createQr() {
+        const code = String(els.qrCodeInput?.value || '').trim();
+        const locationId = Number(els.qrLocationInput?.value);
+        const chargerId = Number(els.qrChargerInput?.value || '');
+        const connectorId = Number(els.qrConnectorInput?.value || '');
+
+        if (!code || !Number.isFinite(locationId)) {
+          toast('warn', 'Missing fields', 'Code and location ID are required.');
+          return;
+        }
+
+        const res = await fetchJson(`${API_BASE}/admin/qr-codes`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            code,
+            locationId,
+            chargerId: Number.isFinite(chargerId) ? chargerId : undefined,
+            connectorId: Number.isFinite(connectorId) ? connectorId : undefined,
+          }),
+        });
+
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+
+        toast('success', 'QR created', 'QR code created.');
+        await loadQr();
+      }
+
+      function renderUsers() {
+        if (!els.usersTbody) return;
+        const items = Array.isArray(usersCache) ? usersCache : [];
+
+        if (!items.length) {
+          els.usersTbody.innerHTML = `<tr><td colspan="4" style="color: rgba(226, 232, 240, 0.65);">No users found.</td></tr>`;
+          return;
+        }
+
+        els.usersTbody.innerHTML = items.map(u => `
+          <tr>
+            <td style="font-weight:900;">${u.id}</td>
+            <td>${escapeHtml(u.email ?? '—')}</td>
+            <td>${escapeHtml(u.role ?? '—')}</td>
+            <td>${fmtDate(u.createdAt)}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadUsers() {
+        if (!isSuperAdmin()) {
+          toast('warn', 'Access denied', 'Super admin role required.');
+          return;
+        }
+        const data = await fetchJson(`${API_BASE}/admin/users`);
+        usersCache = Array.isArray(data) ? data : [];
+        if (els.usersMeta) {
+          els.usersMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        }
+        renderUsers();
+      }
+
+      async function createUser() {
+        if (!isSuperAdmin()) {
+          toast('warn', 'Access denied', 'Super admin role required.');
+          return;
+        }
+
+        const email = String(els.userEmailInput?.value || '').trim().toLowerCase();
+        const password = String(els.userPasswordInput?.value || '');
+        const role = String(els.userRoleInput?.value || 'ADMIN');
+        const accountIdRaw = String(els.userAccountInput?.value || '').trim();
+        const accountId = accountIdRaw ? Number(accountIdRaw) : null;
+
+        if (!email || !password) {
+          toast('warn', 'Missing fields', 'Email and password are required.');
+          return;
+        }
+        if (role === 'ADMIN' && !Number.isFinite(accountId)) {
+          toast('warn', 'Missing fields', 'Account ID is required for ADMIN users.');
+          return;
+        }
+
+        const res = await fetchJson(`${API_BASE}/admin/users`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password,
+            role,
+            accountId: Number.isFinite(accountId) ? accountId : undefined,
+          }),
+        });
+
+        if (res?.ok === false) {
+          toast('error', 'Create failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+
+        if (els.userEmailInput) els.userEmailInput.value = '';
+        if (els.userPasswordInput) els.userPasswordInput.value = '';
+        if (els.userRoleInput) els.userRoleInput.value = 'ADMIN';
+        if (els.userAccountInput) els.userAccountInput.value = '';
+
+        toast('success', 'User created', 'Admin user created.');
+        await loadUsers();
+      }
+
+      function openMessagesModal(chargerId) {
+        selectedCharger = chargerId;
+        selectedMsgId = null;
+        msgsPage = { take: 25, skip: 0, total: 0, items: [] };
+        els.selectedChargerId.textContent = chargerId;
+        els.messagesBackdrop.style.display = 'flex';
+        els.messagesBackdrop.setAttribute('aria-hidden', 'false');
+        els.msgDetails.style.display = 'none';
+        els.msgJson.textContent = '—';
+        els.resJson.textContent = '—';
+
+        loadOperations().then(() => loadMessages());
+
+        if (messagesPollTimer) clearInterval(messagesPollTimer);
+        messagesPollTimer = setInterval(() => {
+          if (els.messagesBackdrop.style.display === 'flex' && !document.hidden) {
+            loadMessages().catch(() => {});
+          }
+        }, POLL_MS);
+      }
+
+      function closeMessagesModal() {
+        els.messagesBackdrop.style.display = 'none';
+        els.messagesBackdrop.setAttribute('aria-hidden', 'true');
+
+        if (messagesPollTimer) {
+          clearInterval(messagesPollTimer);
+          messagesPollTimer = null;
+        }
+      }
+
+      async function loadOperations() {
+        const ops = await fetchJson(`${API_BASE}/admin/ocpp/operations`);
+        opsCache = Array.isArray(ops) ? ops : [];
+        opsSelected = new Set([...opsSelected].filter(x => opsCache.includes(x)));
+        renderOpsChecklist();
+      }
+
+      function renderOpsChecklist() {
+        if (!opsCache.length) {
+          els.opsChecklist.innerHTML = `<div style="color: var(--muted);">No operations yet (send OCPP messages first).</div>`;
+          return;
+        }
+        els.opsChecklist.innerHTML = opsCache.map(op => {
+          const checked = opsSelected.has(op) ? 'checked' : '';
+          const id = `op_${op.replace(/[^a-z0-9]/gi, '_')}`;
+          return `
+            <label for="${id}">
+              <input type="checkbox" id="${id}" data-op="${op}" ${checked} />
+              ${escapeHtml(op)}
+            </label>
+          `;
+        }).join('');
+      }
+
+      function getOpQuery() {
+        const ops = [...opsSelected];
+        return ops.length ? `&operation=${encodeURIComponent(ops.join(','))}` : '';
+      }
+
+      async function loadMessages() {
+        if (!selectedCharger) return;
+
+        els.messagesTbody.innerHTML = `<tr><td colspan="3" style="color: var(--muted);">Loading…</td></tr>`;
+
+        const url = `${API_BASE}/admin/chargers/${encodeURIComponent(selectedCharger)}/messages?take=${msgsPage.take}&skip=${msgsPage.skip}${getOpQuery()}`;
+        const data = await fetchJson(url);
+
+        msgsPage.total = Number(data.total ?? 0);
+        msgsPage.items = Array.isArray(data.items) ? data.items : [];
+
+        renderMessagesTable();
+      }
+
+      function renderMessagesTable() {
+        const items = msgsPage.items;
+
+        if (!msgsPage.total) {
+          els.msgsMeta.textContent = '—';
+        } else {
+          els.msgsMeta.textContent = `Showing ${msgsPage.skip + 1}-${Math.min(msgsPage.skip + msgsPage.take, msgsPage.total)} of ${msgsPage.total}`;
+        }
+
+        if (!items.length) {
+          els.messagesTbody.innerHTML = `<tr><td colspan="3" style="color: var(--muted);">No messages for this filter.</td></tr>`;
+          return;
+        }
+
+        const byId = new Map();
+        for (const it of items) {
+          const key = String(it.messageId ?? it.id);
+          const cur = byId.get(key) || { operation: it.operation, in: null, out: null };
+          if (String(it.direction).toUpperCase() === 'IN') cur.in = it;
+          else cur.out = it;
+          cur.operation = cur.operation || it.operation;
+          byId.set(key, cur);
+        }
+
+        const rows = [...byId.values()];
+
+        els.messagesTbody.innerHTML = rows.map(r => {
+          const msgPreview = r.in ? JSON.stringify(r.in.raw ?? {}) : '—';
+          const resPreview = r.out ? JSON.stringify(r.out.raw ?? {}) : '—';
+          const openId = r.in?.id ?? r.out?.id;
+
+          return `
+            <tr data-msgid="${openId}" style="cursor:pointer;">
+              <td style="font-weight:900;">${escapeHtml(r.operation ?? '—')}</td>
+              <td><a class="link" data-msgid="${openId}">${escapeHtml(msgPreview).slice(0, 120)}${msgPreview.length > 120 ? '…' : ''}</a></td>
+              <td>${escapeHtml(resPreview).slice(0, 120)}${resPreview.length > 120 ? '…' : ''}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#039;');
+      }
+
+      function showMessageDetails(msgId) {
+        const item = msgsPage.items.find(x => x.id === Number(msgId));
+        if (!item) return;
+
+        const msgKey = String(item.messageId ?? item.id);
+        const inMsg = msgsPage.items.find(x => String(x.messageId ?? x.id) === msgKey && String(x.direction).toUpperCase() === 'IN');
+        const outMsg = msgsPage.items.find(x => String(x.messageId ?? x.id) === msgKey && String(x.direction).toUpperCase() === 'OUT');
+
+        els.msgDetails.style.display = '';
+        els.msgJson.textContent = JSON.stringify(inMsg?.raw ?? {}, null, 2);
+        els.resJson.textContent = JSON.stringify(outMsg?.raw ?? {}, null, 2);
+
+        selectedMsgId = msgKey;
+      }
+
+      async function copyText(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+          toast('success', 'Copied', 'Copied to clipboard.');
+        } catch {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          toast('success', 'Copied', 'Copied to clipboard.');
+        }
+      }
+
+      function startOverviewPoll() {
+        if (overviewTimer) return;
+        overviewTimer = setInterval(() => {
+          if (document.hidden) return;
+          refreshOverviewAndChargers().catch(() => {});
+        }, POLL_MS);
+      }
+
+      function stopOverviewPoll() {
+        if (!overviewTimer) return;
+        clearInterval(overviewTimer);
+        overviewTimer = null;
+      }
+
+      // --- Events ---
+      window.addEventListener('hashchange', () => {
+        const view = getViewFromHash();
+        setActiveNav(view);
+        if (view === 'pricing') {
+          loadPricing().catch(err => toast('error', 'Pricing failed', String(err?.message || err)));
+        }
+        if (view === 'analytics') {
+          loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
+        }
+        if (view === 'accounts') {
+          loadAccounts().catch(err => toast('error', 'Accounts failed', String(err?.message || err)));
+        }
+        if (view === 'locations') {
+          loadLocations().catch(err => toast('error', 'Locations failed', String(err?.message || err)));
+        }
+        if (view === 'tariffs') {
+          loadTariffs().catch(err => toast('error', 'Tariffs failed', String(err?.message || err)));
+        }
+        if (view === 'qr') {
+          loadQr().catch(err => toast('error', 'QR failed', String(err?.message || err)));
+        }
+        if (view === 'users') {
+          loadUsers().catch(err => toast('error', 'Users failed', String(err?.message || err)));
+        }
       });
-    }
 
-    async function loadTransactions() {
-      const res = await fetch('http://localhost:3000/admin/transactions');
-      const data = await res.json();
-
-      const tbody = document.getElementById('transactions');
-      tbody.innerHTML = '';
-
-      data.forEach(t => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${t.chargerId}</td>
-          <td>${t.ocppTransactionId}</td>
-          <td>${t.idTag}</td>
-          <td>${t.meterStart}</td>
-          <td>${t.meterStop ?? '-'}</td>
-          <td class="muted">${new Date(t.startedAt).toLocaleString()}</td>
-          <td class="muted">${t.stoppedAt ? new Date(t.stoppedAt).toLocaleString() : '-'}</td>
-          <td>${t.stopReason ?? '-'}</td>
-        `;
-        tbody.appendChild(tr);
+      els.globalSearch.addEventListener('input', () => {
+        saveUiState();
+        renderChargers();
+        renderDashboardLists();
       });
-    }
 
-    async function refresh() {
-      await Promise.all([
-        loadChargers(),
-        loadTransactions(),
-      ]);
-    }
+      els.btnRefresh.addEventListener('click', async () => {
+        try {
+          await refreshOverviewAndChargers();
+          toast('success', 'Refreshed', 'Updated overview and chargers.');
+        } catch (err) {
+          toast('error', 'Refresh failed', String(err?.message || err));
+        }
+      });
 
-    refresh();
-    setInterval(refresh, 3000);
-  </script>
+      els.btnConnect.addEventListener('click', () => {
+        toast('info', 'Simulator', 'Connect chargers via the simulator at frontend/index.html');
+      });
 
-</body>
+      els.btnEditCols.addEventListener('click', () => {
+        toast('info', 'Columns', 'This prototype uses fixed columns.');
+      });
+
+      els.btnPricingSave?.addEventListener('click', () => {
+        savePricing().catch(err => toast('error', 'Save failed', String(err?.message || err)));
+      });
+
+      els.navSignout?.addEventListener('click', (e) => {
+        e.preventDefault();
+        fetchJson(`${API_BASE}/auth/logout`, { method: 'POST' }).catch(() => {});
+        clearAuthToken();
+        authUser = null;
+        updateRoleUi();
+        showAuth();
+      });
+
+      els.btnAuthClear?.addEventListener('click', () => {
+        if (els.authEmail) els.authEmail.value = '';
+        if (els.authPassword) els.authPassword.value = '';
+        setAuthMessage('—');
+      });
+
+      els.btnAuthLogin?.addEventListener('click', async () => {
+        const email = String(els.authEmail?.value || '').trim();
+        const password = String(els.authPassword?.value || '');
+        if (!email || !password) {
+          setAuthMessage('Email and password required.');
+          return;
+        }
+
+        try {
+          setAuthMessage('Signing in…');
+          const res = await fetchJson(`${API_BASE}/auth/login`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          if (!res?.accessToken) {
+            setAuthMessage('Login failed.');
+            return;
+          }
+          setAuthToken(res.accessToken);
+          authUser = res.user ?? null;
+          updateRoleUi();
+          hideAuth();
+          await boot();
+        } catch (err) {
+          setAuthMessage(String(err?.message || err));
+        }
+      });
+
+      els.btnAnalyticsRefresh?.addEventListener('click', () => {
+        loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
+      });
+
+      els.btnAccountsRefresh?.addEventListener('click', () => {
+        loadAccounts().catch(err => toast('error', 'Accounts failed', String(err?.message || err)));
+      });
+
+      els.btnCreateAccount?.addEventListener('click', () => {
+        createAccount().catch(err => toast('error', 'Create account failed', String(err?.message || err)));
+      });
+
+      els.btnCreateConnected?.addEventListener('click', () => {
+        createConnectedAccount().catch(err => toast('error', 'Link accounts failed', String(err?.message || err)));
+      });
+
+      els.btnLocationsRefresh?.addEventListener('click', () => {
+        loadLocations().catch(err => toast('error', 'Locations failed', String(err?.message || err)));
+      });
+
+      els.btnCreateLocation?.addEventListener('click', () => {
+        createLocation().catch(err => toast('error', 'Create location failed', String(err?.message || err)));
+      });
+
+      els.btnTariffsRefresh?.addEventListener('click', () => {
+        loadTariffs().catch(err => toast('error', 'Tariffs failed', String(err?.message || err)));
+      });
+
+      els.btnCreateTariff?.addEventListener('click', () => {
+        createTariff().catch(err => toast('error', 'Create tariff failed', String(err?.message || err)));
+      });
+
+      els.btnQrRefresh?.addEventListener('click', () => {
+        loadQr().catch(err => toast('error', 'QR failed', String(err?.message || err)));
+      });
+
+      els.btnCreateQr?.addEventListener('click', () => {
+        createQr().catch(err => toast('error', 'Create QR failed', String(err?.message || err)));
+      });
+
+      els.btnUsersRefresh?.addEventListener('click', () => {
+        loadUsers().catch(err => toast('error', 'Users failed', String(err?.message || err)));
+      });
+
+      els.btnCreateUser?.addEventListener('click', () => {
+        createUser().catch(err => toast('error', 'Create user failed', String(err?.message || err)));
+      });
+
+      // manual revenue refresh (also re-enables endpoint attempts)
+      els.btnRevenueRefresh?.addEventListener('click', () => {
+        revenueEndpointAvailable = true;
+        loadRevenue('30d').catch(err => toast('error', 'Revenue failed', String(err?.message || err)));
+      });
+
+      els.baseTariffInput?.addEventListener('input', () => {
+        const base = Number(els.baseTariffInput.value);
+        const markup = Number(pricingCache?.platformMarkup ?? 0.1);
+
+        const currency = pricingCache?.currency ?? 'GBP';
+        if (!Number.isFinite(base) || base < 0) return;
+
+        els.payoutLabel.textContent = fmtMoneyPerKwh(base, currency);
+        els.driverPriceLabel.textContent = fmtMoneyPerKwh(round4(base * (1 + markup)), currency);
+        els.platformFeeLabel.textContent = fmtMoneyPerKwh(round4(base * markup), currency);
+      });
+
+      els.pillConnectivity.addEventListener('click', () => {
+        connectivityFilter =
+          connectivityFilter === 'all' ? 'online' :
+          connectivityFilter === 'online' ? 'offline' :
+          'all';
+        saveUiState();
+        renderChargers();
+      });
+
+      els.pillChargerStatus.addEventListener('click', () => toast('info', 'Charger status', 'Not wired in this prototype.'));
+      els.pillFirmware.addEventListener('click', () => toast('info', 'Firmware', 'Not wired in this prototype.'));
+
+      els.pillConnectorStatus.addEventListener('click', () => {
+        if (!selectedCharger) {
+          const first = chargersCache.find(matchesGlobalSearch);
+          if (!first) return toast('warn', 'No chargers', 'No chargers to view.');
+          openMessagesModal(first.chargerId);
+          return;
+        }
+        openMessagesModal(selectedCharger);
+      });
+
+      els.chargersTbody.addEventListener('click', (e) => {
+        const tr = e.target.closest('tr[data-charger]');
+        if (!tr) return;
+        const chargerId = tr.getAttribute('data-charger');
+        if (!chargerId) return;
+        selectedCharger = chargerId;
+        openMessagesModal(chargerId);
+      });
+
+      els.messagesClose.addEventListener('click', closeMessagesModal);
+      els.messagesBackdrop.addEventListener('click', (e) => {
+        if (e.target === els.messagesBackdrop) closeMessagesModal();
+      });
+
+      els.opsChecklist.addEventListener('change', (e) => {
+        const cb = e.target.closest('input[type="checkbox"][data-op]');
+        if (!cb) return;
+        const op = cb.getAttribute('data-op');
+        if (!op) return;
+        if (cb.checked) opsSelected.add(op);
+        else opsSelected.delete(op);
+      });
+
+      els.btnOpsClear.addEventListener('click', () => {
+        opsSelected = new Set();
+        renderOpsChecklist();
+      });
+
+      els.btnOpsApply.addEventListener('click', () => {
+        msgsPage.skip = 0;
+        loadMessages().catch(err => toast('error', 'Messages failed', String(err?.message || err)));
+      });
+
+      els.btnOpsRefresh.addEventListener('click', () =>
+        loadOperations().catch(err => toast('error', 'Operations failed', String(err?.message || err)))
+      );
+
+      els.btnMsgsPrev.addEventListener('click', () => {
+        msgsPage.skip = Math.max(0, msgsPage.skip - msgsPage.take);
+        loadMessages().catch(err => toast('error', 'Messages failed', String(err?.message || err)));
+      });
+
+      els.btnMsgsNext.addEventListener('click', () => {
+        if (msgsPage.skip + msgsPage.take >= msgsPage.total) return;
+        msgsPage.skip = msgsPage.skip + msgsPage.take;
+        loadMessages().catch(err => toast('error', 'Messages failed', String(err?.message || err)));
+      });
+
+      els.messagesTbody.addEventListener('click', (e) => {
+        const el = e.target.closest('[data-msgid]');
+        if (!el) return;
+        const msgId = el.getAttribute('data-msgid');
+        if (!msgId) return;
+        showMessageDetails(msgId);
+      });
+
+      els.btnCopyMsg.addEventListener('click', () => copyText(els.msgJson.textContent || ''));
+      els.btnCopyRes.addEventListener('click', () => copyText(els.resJson.textContent || ''));
+
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && els.messagesBackdrop.style.display === 'flex') {
+          closeMessagesModal();
+        }
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopOverviewPoll();
+        else {
+          const view = getViewFromHash();
+          if (view === 'dashboard' || view === 'chargers') {
+            refreshOverviewAndChargers().catch(() => {});
+            startOverviewPoll();
+          }
+        }
+      });
+
+      loadUiState();
+      setActiveNav(getViewFromHash());
+
+      async function boot() {
+        try {
+          const token = getAuthToken();
+          if (!token) {
+            showAuth();
+            return;
+          }
+
+          const me = await fetchJson(`${API_BASE}/auth/me`);
+          authUser = me?.user ?? null;
+          hideAuth();
+          updateRoleUi();
+
+          const view = getViewFromHash();
+          if (view === 'pricing') {
+            await loadPricing();
+          } else if (view === 'analytics') {
+            await loadAnalytics('30d');
+          } else if (view === 'accounts') {
+            await loadAccounts();
+          } else if (view === 'locations') {
+            await loadLocations();
+          } else if (view === 'tariffs') {
+            await loadTariffs();
+          } else if (view === 'qr') {
+            await loadQr();
+          } else if (view === 'users') {
+            await loadUsers();
+          } else {
+            await refreshOverviewAndChargers();
+            startOverviewPoll();
+          }
+        } catch (e) {
+          toast('error', 'Boot failed', String(e?.message || e), 5000);
+          startOverviewPoll();
+        }
+      }
+
+      boot();
+    </script>
+  </body>
 </html>

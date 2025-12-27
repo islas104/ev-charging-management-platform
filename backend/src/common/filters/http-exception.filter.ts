@@ -41,6 +41,7 @@ import {
         statusCode: status,
         timestamp: new Date().toISOString(),
         path: request.url,
+        requestId: request.headers['x-request-id'] ?? null,
         message,
       });
     }

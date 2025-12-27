@@ -1,343 +1,626 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>OCPP Charger Simulator</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>OCPP Charger Simulator</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap');
 
-  <style>
-    :root {
-      --bg-light: #f4f6f8;
-      --panel-light: #ffffff;
-      --text-light: #111827;
-      --bg-dark: #1a202c;
-      --panel-dark: #2d3748;
-      --text-dark: #e2e8f0;
-      --primary: #2563eb;
-      --border: #e5e7eb;
-      --muted: #6b7280;
-      --terminal-bg: #0b0f14;
-      --terminal-text: #22c55e;
-      --danger-bg: #fee2e2;
-      --danger-text: #991b1b;
-      --info-bg: #e0f2fe;
-      --info-text: #075985;
-      --success-bg: #dcfce7;
-      --success-text: #166534;
-      --loading-bg: #f3f4f6;
-      --loading-text: #9ca3af;
-    }
+      :root {
+        --bg-0: #05080f;
+        --bg-1: #0c1424;
+        --bg-2: #101b30;
+        --panel: rgba(255, 255, 255, 0.06);
+        --panel-strong: rgba(255, 255, 255, 0.1);
+        --border: rgba(148, 163, 184, 0.22);
+        --text: #e5e7eb;
+        --muted: rgba(226, 232, 240, 0.6);
+        --accent: #22d3ee;
+        --accent-2: #f59e0b;
+        --good: #22c55e;
+        --bad: #ef4444;
+        --warn: #fbbf24;
+        --shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+        --radius: 18px;
+      }
 
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg-light);
-      color: var(--text-light);
-      padding: 2.5rem;
-      transition: background-color 0.3s ease, color 0.3s ease;
-    }
+      * { box-sizing: border-box; }
 
-    body.dark-mode {
-      background: var(--bg-dark);
-      color: var(--text-dark);
-    }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Space Grotesk', ui-sans-serif, system-ui;
+        background:
+          radial-gradient(900px 500px at 12% 8%, rgba(34, 211, 238, 0.18), transparent 60%),
+          radial-gradient(900px 600px at 90% 0%, rgba(245, 158, 11, 0.2), transparent 60%),
+          linear-gradient(180deg, var(--bg-0), var(--bg-2));
+        color: var(--text);
+        padding: 32px 24px 48px;
+      }
 
-    .container {
-      max-width: 920px;
-      margin: 0 auto;
-    }
+      .bg-orb {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(40px);
+        opacity: 0.35;
+        z-index: 0;
+      }
+      .orb-1 { width: 240px; height: 240px; background: #22d3ee; top: -60px; left: -40px; }
+      .orb-2 { width: 300px; height: 300px; background: #f59e0b; top: 40px; right: -80px; }
 
-    header {
-      margin-bottom: 1.5rem;
-      text-align: center;
-    }
+      .app {
+        position: relative;
+        z-index: 1;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
 
-    h1 {
-      margin: 0;
-      font-size: 1.8rem;
-    }
+      .topbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
 
-    .subtitle {
-      color: var(--muted);
-      margin-top: 0.25rem;
-    }
+      .title {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
 
-    .status {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-top: 0.75rem;
-      padding: 0.3rem 0.7rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      transition: background-color 0.3s ease, color 0.3s ease;
-    }
+      .title h1 {
+        margin: 0;
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
 
-    .status.disconnected {
-      background: var(--danger-bg);
-      color: var(--danger-text);
-    }
+      .subtitle {
+        color: var(--muted);
+        font-size: 14px;
+      }
 
-    .status.connected {
-      background: var(--info-bg);
-      color: var(--info-text);
-    }
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.6);
+        font-size: 13px;
+        font-weight: 700;
+      }
 
-    .status.active {
-      background: var(--success-bg);
-      color: var(--success-text);
-    }
+      .status-pill span.dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--bad);
+        box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+      }
 
-    .panel {
-      background: var(--panel-light);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1.25rem;
-      margin-bottom: 1.25rem;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-      transition: background-color 0.3s ease, color 0.3s ease;
-    }
+      .status-pill.connected span.dot { background: var(--good); box-shadow: 0 0 12px rgba(34, 197, 94, 0.8); }
+      .status-pill.loading span.dot { background: var(--warn); box-shadow: 0 0 12px rgba(251, 191, 36, 0.8); }
+      .status-pill.active span.dot { background: var(--accent); box-shadow: 0 0 12px rgba(34, 211, 238, 0.8); }
 
-    body.dark-mode .panel {
-      background: var(--panel-dark);
-    }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 16px;
+      }
 
-    .controls {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(14px);
+        animation: fadeUp 0.5s ease;
+      }
 
-    button {
-      appearance: none;
-      border: 1px solid var(--border);
-      background: linear-gradient(180deg, #ffffff, #f9fafb);
-      padding: 0.55rem 0.9rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      transition: all 0.15s ease;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
+      .panel h2 {
+        margin: 0 0 10px;
+        font-size: 18px;
+        font-weight: 700;
+      }
 
-    button:hover:not(:disabled) {
-      background: #f3f4f6;
-      transform: scale(1.05);
-    }
+      .panel .meta {
+        color: var(--muted);
+        font-size: 12px;
+      }
 
-    button.primary {
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
-    }
+      .panel.connection { grid-column: span 5; }
+      .panel.session { grid-column: span 4; }
+      .panel.terminal-panel { grid-column: span 12; }
 
-    button.primary:hover:not(:disabled) {
-      opacity: 0.9;
-    }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 12px;
+      }
 
-    button:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
+      label {
+        font-size: 12px;
+        font-weight: 700;
+        color: rgba(226, 232, 240, 0.75);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
 
-    .loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--loading-bg);
-      color: var(--loading-text);
-      font-size: 0.85rem;
-      padding: 0.5rem;
-      border-radius: 6px;
-    }
+      input, select {
+        background: rgba(15, 23, 42, 0.65);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 12px;
+        padding: 10px 12px;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 600;
+        outline: none;
+      }
 
-    .terminal {
-      background: linear-gradient(180deg, #0b0f14, #020617);
-      color: var(--terminal-text);
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.8rem;
-      padding: 1rem;
-      border-radius: 10px;
-      height: 260px;
-      overflow-y: auto;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-    }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
 
-    .terminal .dim {
-      color: #9ca3af;
-    }
+      .btn {
+        appearance: none;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+      }
 
-    footer {
-      margin-top: 2rem;
-      text-align: center;
-      font-size: 0.75rem;
-      color: var(--muted);
-    }
+      .btn.primary {
+        background: linear-gradient(135deg, rgba(34, 211, 238, 0.9), rgba(14, 116, 144, 0.9));
+        color: #05131a;
+        border-color: rgba(34, 211, 238, 0.6);
+      }
 
-    .dark-mode-toggle {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-      cursor: pointer;
-      font-size: 0.85rem;
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      background: var(--primary);
-      color: #fff;
-      border: none;
-    }
-  </style>
-</head>
+      .btn.warn {
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.9), rgba(245, 158, 11, 0.8));
+        color: #2a1500;
+      }
 
-<body>
-  <button class="dark-mode-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</button>
-  <div class="container">
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
 
-    <header>
-      <h1>OCPP Charger Simulator</h1>
-      <div class="subtitle">Charger ID: <strong>DEMO-CHARGER-001</strong></div>
-      <div id="status" class="status disconnected">
-        <span>🔴</span>
-        <span>Disconnected</span>
-      </div>
-    </header>
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        font-size: 12px;
+        color: var(--muted);
+      }
 
-    <div class="panel">
-      <div class="controls">
-        <button id="connectBtn" class="primary" onclick="connect()">Connect</button>
-        <button id="bootBtn" onclick="boot()">Boot</button>
-        <button id="startBtn" onclick="start()">Start Transaction</button>
-        <button id="heartbeatBtn" onclick="heartbeat()">Heartbeat</button>
-        <button id="stopBtn" onclick="stop()">Stop Transaction</button>
-      </div>
+      .terminal {
+        background: rgba(2, 6, 23, 0.9);
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        padding: 14px;
+        height: 300px;
+        overflow-y: auto;
+        font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        color: #a7f3d0;
+      }
+
+      .log-line {
+        margin-bottom: 8px;
+        animation: rise 0.2s ease;
+      }
+
+      .log-line.dim { color: rgba(148, 163, 184, 0.7); }
+
+      .divider {
+        margin: 16px 0;
+        height: 1px;
+        background: rgba(148, 163, 184, 0.2);
+      }
+
+      footer {
+        margin-top: 24px;
+        color: var(--muted);
+        font-size: 12px;
+        text-align: center;
+      }
+
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes rise {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @media (max-width: 980px) {
+        .panel.connection { grid-column: span 12; }
+        .panel.session { grid-column: span 12; }
+        .panel.terminal-panel { grid-column: span 12; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+
+    <div class="app">
+      <header class="topbar">
+        <div class="title">
+          <h1>OCPP Charger Simulator</h1>
+          <div class="subtitle" id="subtitle">Charger ID: DEMO-CHARGER-001</div>
+        </div>
+        <div class="status-pill disconnected" id="statusPill">
+          <span class="dot"></span>
+          <span id="statusText">Disconnected</span>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="panel connection">
+          <h2>Connection</h2>
+          <div class="meta">Point this at your backend WebSocket endpoint.</div>
+
+          <div class="field">
+            <label for="wsBaseInput">WebSocket Base URL</label>
+            <input id="wsBaseInput" value="ws://localhost:3001/ocpp" />
+          </div>
+
+          <div class="field">
+            <label for="chargerIdInput">Charger ID</label>
+            <input id="chargerIdInput" value="DEMO-CHARGER-001" />
+          </div>
+
+          <div class="row" style="margin-top: 14px;">
+            <button class="btn primary" id="connectBtn">Connect</button>
+            <button class="btn" id="disconnectBtn">Disconnect</button>
+            <button class="btn" id="bootBtn">BootNotification</button>
+            <button class="btn" id="heartbeatBtn">Heartbeat</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row">
+            <span class="chip" id="socketState">Socket: idle</span>
+            <span class="chip" id="lastAction">Last action: —</span>
+          </div>
+        </section>
+
+        <section class="panel session">
+          <h2>Session Controls</h2>
+          <div class="meta">Simulate RFID auth and charging flow.</div>
+
+          <div class="field">
+            <label for="idTagInput">RFID / ID Tag</label>
+            <input id="idTagInput" value="RFID-12345" />
+          </div>
+
+          <div class="field">
+            <label for="connectorInput">Connector</label>
+            <input id="connectorInput" type="number" value="1" min="1" />
+          </div>
+
+          <div class="row" style="margin-top: 12px;">
+            <button class="btn" id="authorizeBtn">Authorize</button>
+            <button class="btn warn" id="startBtn">Start Transaction</button>
+            <button class="btn" id="stopBtn">Stop Transaction</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="field">
+            <label for="meterInput">Meter (Wh)</label>
+            <input id="meterInput" type="number" value="12" min="0" />
+          </div>
+
+          <div class="row" style="margin-top: 12px;">
+            <button class="btn" id="meterBtn">Send MeterValues</button>
+            <button class="btn" id="statusBtn">Status: Available</button>
+          </div>
+        </section>
+
+        <section class="panel terminal-panel">
+          <h2>Live OCPP Log</h2>
+          <div class="meta">Inbound and outbound frames appear here.</div>
+          <div class="terminal" id="log"></div>
+        </section>
+      </main>
+
+      <footer>
+        Cloud Tunnel · EV Charging Platform · OCPP 1.6
+      </footer>
     </div>
 
-    <div class="panel">
-      <div class="terminal" id="log"></div>
-    </div>
+    <script>
+      let socket;
+      let activeTransactionId = null;
+      let lastStatus = 'Available';
+      let heartbeatTimer = null;
 
-    <footer>
-      Cloud Tunnel · EV Charging Platform · OCPP 1.6
-    </footer>
-  </div>
+      const logEl = document.getElementById('log');
+      const statusPill = document.getElementById('statusPill');
+      const statusText = document.getElementById('statusText');
+      const subtitle = document.getElementById('subtitle');
+      const socketState = document.getElementById('socketState');
+      const lastAction = document.getElementById('lastAction');
 
-  <script>
-    let socket;
-    let activeTransactionId = null;
+      const wsBaseInput = document.getElementById('wsBaseInput');
+      const chargerIdInput = document.getElementById('chargerIdInput');
+      const idTagInput = document.getElementById('idTagInput');
+      const connectorInput = document.getElementById('connectorInput');
+      const meterInput = document.getElementById('meterInput');
 
-    const logEl = document.getElementById('log');
-    const statusEl = document.getElementById('status');
+      const connectBtn = document.getElementById('connectBtn');
+      const disconnectBtn = document.getElementById('disconnectBtn');
+      const bootBtn = document.getElementById('bootBtn');
+      const heartbeatBtn = document.getElementById('heartbeatBtn');
+      const authorizeBtn = document.getElementById('authorizeBtn');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const meterBtn = document.getElementById('meterBtn');
+      const statusBtn = document.getElementById('statusBtn');
 
-    const connectBtn = document.getElementById('connectBtn');
-    const bootBtn = document.getElementById('bootBtn');
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const heartbeatBtn = document.getElementById('heartbeatBtn');
+      function log(message, dim = false) {
+        const ts = new Date().toLocaleTimeString();
+        const line = document.createElement('div');
+        line.className = `log-line${dim ? ' dim' : ''}`;
+        line.textContent = `[${ts}] ${message}`;
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
 
-    function log(message, dim = false) {
-      const ts = new Date().toLocaleTimeString();
-      const line = document.createElement('div');
-      if (dim) line.className = 'dim';
-      line.textContent = `[${ts}] ${message}`;
-      logEl.appendChild(line);
-      logEl.scrollTop = logEl.scrollHeight;
-    }
+      function setStatus(type, text) {
+        statusPill.className = `status-pill ${type}`;
+        statusText.textContent = text;
+      }
 
-    function setStatus(type, text) {
-      const icon = type === 'disconnected' ? '🔴' : type === 'connected' ? '🟢' : '⚡';
-      statusEl.className = `status ${type}`;
-      statusEl.innerHTML = `<span>${icon}</span><span>${text}</span>`;
-    }
+      function setButtons(state) {
+        connectBtn.disabled = state !== 'disconnected';
+        disconnectBtn.disabled = state === 'disconnected';
+        bootBtn.disabled = state === 'disconnected' || state === 'loading';
+        heartbeatBtn.disabled = state === 'disconnected' || state === 'loading';
+        authorizeBtn.disabled = state === 'disconnected' || state === 'loading';
+        startBtn.disabled = state !== 'connected';
+        stopBtn.disabled = state !== 'active';
+        meterBtn.disabled = state === 'disconnected' || state === 'loading';
+        statusBtn.disabled = state === 'disconnected' || state === 'loading';
+      }
 
-    function setButtons(state) {
-      bootBtn.disabled = state === 'disconnected';
-      startBtn.disabled = state !== 'connected';
-      stopBtn.disabled = state !== 'active';
-      heartbeatBtn.disabled = state === 'disconnected';
-    }
+      setButtons('disconnected');
 
-    setButtons('disconnected');
+      function nextId() {
+        return Math.random().toString(36).substring(2, 10);
+      }
 
-    const id = () => Math.random().toString(36).substring(2, 8);
+      function isSocketOpen() {
+        return socket && socket.readyState === WebSocket.OPEN;
+      }
 
-    function connect() {
-      setStatus('loading', 'Connecting...');
-      socket = new WebSocket(
-        'ws://localhost:3000/ocpp?chargerId=DEMO-CHARGER-001',
-        ['ocpp1.6']
-      );
+      function buildWsUrl() {
+        const base = String(wsBaseInput.value || '').trim();
+        const chargerId = String(chargerIdInput.value || '').trim();
+        if (!base || !chargerId) return '';
+        subtitle.textContent = `Charger ID: ${chargerId}`;
+        const separator = base.includes('?') ? '&' : '?';
+        return `${base}${separator}chargerId=${encodeURIComponent(chargerId)}`;
+      }
 
-      socket.onopen = () => {
-        setStatus('connected', 'Connected (Idle)');
-        setButtons('connected');
-        log('CONNECTED');
-        boot();
-      };
-
-      socket.onclose = () => {
-        setStatus('disconnected', 'Disconnected');
-        setButtons('disconnected');
-        log('DISCONNECTED', true);
-      };
-
-      socket.onerror = () => {
-        setStatus('disconnected', 'Error');
-        log('ERROR: WebSocket error', true);
-      };
-      
-      socket.onmessage = (e) => {
-        log(`RECV  ${e.data}`);
-        const msg = JSON.parse(e.data);
-        if (msg[2]?.transactionId) {
-          activeTransactionId = msg[2].transactionId;
+      function connect() {
+        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+          return;
         }
-      };
-    }
 
-    function send(action, payload) {
-      const msg = [2, id(), action, payload];
-      socket.send(JSON.stringify(msg));
-      log(`SEND  ${action}`);
-    }
+        const url = buildWsUrl();
+        if (!url) {
+          log('WARN  Missing WebSocket URL or Charger ID.', true);
+          return;
+        }
 
-    function boot() {
-      send('BootNotification', {
-        chargePointVendor: 'CloudTunnel',
-        chargePointModel: 'CT-AC-7KW'
-      });
-    }
+        setStatus('loading', 'Connecting…');
+        setButtons('loading');
+        socketState.textContent = 'Socket: connecting';
 
-    function start() {
-      send('StartTransaction', {
-        connectorId: 1,
-        idTag: 'RFID-12345',
-        meterStart: 0,
-        timestamp: new Date().toISOString()
-      });
-      setStatus('active', 'Charging Session Active');
-      setButtons('active');
-    }
+        socket = new WebSocket(url, ['ocpp1.6']);
 
-    function stop() {
-      send('StopTransaction', {
-        transactionId: activeTransactionId,
-        meterStop: 12,
-        timestamp: new Date().toISOString(),
-        reason: 'Local'
-      });
-      activeTransactionId = null;
-      setStatus('connected', 'Connected (Idle)');
-      setButtons('connected');
-    }
+        socket.onopen = () => {
+          setStatus('connected', 'Connected');
+          setButtons('connected');
+          socketState.textContent = 'Socket: open';
+          log('CONNECTED');
+          boot();
+          sendStatusNotification('Available');
+          startHeartbeatLoop();
+        };
 
-    function heartbeat() {
-      send('Heartbeat', {});
-    }
+        socket.onclose = () => {
+          setStatus('disconnected', 'Disconnected');
+          setButtons('disconnected');
+          socketState.textContent = 'Socket: closed';
+          log('DISCONNECTED', true);
+          activeTransactionId = null;
+          stopHeartbeatLoop();
+        };
 
-    function toggleDarkMode() {
-      document.body.classList.toggle('dark-mode');
-    }
-  </script>
-</body>
+        socket.onerror = () => {
+          setStatus('disconnected', 'Error');
+          setButtons('disconnected');
+          socketState.textContent = 'Socket: error';
+          log('ERROR: WebSocket error', true);
+          stopHeartbeatLoop();
+        };
+
+        socket.onmessage = (e) => {
+          log(`RECV  ${e.data}`);
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg?.[2]?.transactionId) {
+              activeTransactionId = msg[2].transactionId;
+              setStatus('active', 'Charging');
+              setButtons('active');
+            }
+          } catch {
+            // ignore malformed frames in UI
+          }
+        };
+      }
+
+      function disconnect() {
+        if (socket) socket.close();
+      }
+
+      function send(action, payload) {
+        if (!isSocketOpen()) {
+          log(`WARN  Cannot send ${action}: socket not connected`, true);
+          return;
+        }
+        const msg = [2, nextId(), action, payload];
+        socket.send(JSON.stringify(msg));
+        log(`SEND  ${action}`);
+        lastAction.textContent = `Last action: ${action}`;
+      }
+
+      function boot() {
+        send('BootNotification', {
+          chargePointVendor: 'CloudTunnel',
+          chargePointModel: 'CT-AC-7KW'
+        });
+      }
+
+      function heartbeat() {
+        send('Heartbeat', {});
+      }
+
+      function startHeartbeatLoop() {
+        stopHeartbeatLoop();
+        heartbeatTimer = setInterval(() => {
+          if (isSocketOpen()) heartbeat();
+        }, 30000);
+      }
+
+      function stopHeartbeatLoop() {
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+
+      function authorize() {
+        const idTag = String(idTagInput.value || '').trim();
+        if (!idTag) {
+          log('WARN  Provide an ID tag for Authorize.', true);
+          return;
+        }
+        send('Authorize', { idTag });
+      }
+
+      function start() {
+        const idTag = String(idTagInput.value || '').trim();
+        const connectorId = Number(connectorInput.value || 1);
+        if (!idTag) {
+          log('WARN  Provide an ID tag for StartTransaction.', true);
+          return;
+        }
+        send('StartTransaction', {
+          connectorId: Number.isFinite(connectorId) ? connectorId : 1,
+          idTag,
+          meterStart: 0,
+          timestamp: new Date().toISOString()
+        });
+        setStatus('active', 'Charging');
+        setButtons('active');
+        sendStatusNotification('Charging');
+      }
+
+      function stop() {
+        if (!activeTransactionId) {
+          log('WARN  No active transactionId. Start a transaction first.', true);
+          setStatus('connected', 'Connected');
+          setButtons('connected');
+          return;
+        }
+
+        const meterStop = Number(meterInput.value || 0);
+        send('StopTransaction', {
+          transactionId: activeTransactionId,
+          meterStop: Number.isFinite(meterStop) ? meterStop : 0,
+          timestamp: new Date().toISOString(),
+          reason: 'Local'
+        });
+
+        activeTransactionId = null;
+        setStatus('connected', 'Connected');
+        setButtons('connected');
+        sendStatusNotification('Available');
+      }
+
+      function sendMeterValues() {
+        const connectorId = Number(connectorInput.value || 1);
+        const meter = Number(meterInput.value || 0);
+        const payload = {
+          connectorId: Number.isFinite(connectorId) ? connectorId : 1,
+          transactionId: activeTransactionId ?? undefined,
+          meterValue: [
+            {
+              timestamp: new Date().toISOString(),
+              sampledValue: [
+                {
+                  value: Number.isFinite(meter) ? meter : 0,
+                  measurand: 'Energy.Active.Import.Register',
+                  unit: 'Wh'
+                }
+              ]
+            }
+          ]
+        };
+        send('MeterValues', payload);
+      }
+
+      function sendStatusNotification(status) {
+        const connectorId = Number(connectorInput.value || 1);
+        const statusValue = status || lastStatus;
+        lastStatus = statusValue;
+        statusBtn.textContent = `Status: ${statusValue}`;
+        send('StatusNotification', {
+          connectorId: Number.isFinite(connectorId) ? connectorId : 1,
+          errorCode: statusValue === 'Faulted' ? 'OtherError' : 'NoError',
+          status: statusValue,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      function toggleStatusNotification() {
+        const next = lastStatus === 'Available' ? 'Charging' : lastStatus === 'Charging' ? 'Faulted' : 'Available';
+        sendStatusNotification(next);
+      }
+
+      connectBtn.addEventListener('click', connect);
+      disconnectBtn.addEventListener('click', disconnect);
+      bootBtn.addEventListener('click', boot);
+      heartbeatBtn.addEventListener('click', heartbeat);
+      authorizeBtn.addEventListener('click', authorize);
+      startBtn.addEventListener('click', start);
+      stopBtn.addEventListener('click', stop);
+      meterBtn.addEventListener('click', sendMeterValues);
+      statusBtn.addEventListener('click', toggleStatusNotification);
+    </script>
+  </body>
 </html>

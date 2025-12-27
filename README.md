@@ -15,7 +15,7 @@ This repository contains a **full end-to-end OCPP implementation**:
 
 -   A **browser-based charger simulator** to emulate real chargers
 
--   A **live admin dashboard** for monitoring charger and session state
+-   A **live admin dashboard** for monitoring chargers, locations, tariffs, and QR onboarding (JWT login)
 
 The platform demonstrates the **complete EV charging lifecycle** in a clear, inspectable way.
 
@@ -30,6 +30,7 @@ Repository Structure
 ├── frontend/           # Static frontend UIs
 │   ├── index.html      # Charger simulator
 │   └── admin.html      # Admin dashboard
+│   └── qr.html         # Driver QR start/stop page
 ├── README.md           # You are here`
 
 * * * * *
@@ -52,10 +53,19 @@ Key Capabilities
     -   StartTransaction
 
     -   StopTransaction
+    
+    -   StatusNotification
+    
+    -   Authorize
+    
+    -   MeterValues
 
--   In-memory charger and transaction state
+-   PostgreSQL-backed charger and transaction state (Prisma)
 
--   Admin monitoring API
+-   Admin monitoring API + JWT auth + role-based access
+-   Admin user management (super admin only)
+-   Accounts, locations, tariffs, and QR onboarding
+-   Driver analytics (top drivers by energy)
 
 -   Structured logging
 
@@ -72,15 +82,17 @@ Key Capabilities
 Getting Started
 ---------------
 
-### 1\. Start the Backend
+### 1\. Configure and Start the Backend
 
 `cd backend
+cp .env.example .env
 npm install
+npx prisma migrate dev
 npm run start:dev`
 
 Backend runs on:
 
-`http://localhost:3000`
+`http://localhost:3000` (or `PORT` from `.env`)
 
 Health check:
 
@@ -121,6 +133,27 @@ Shows:
 -   Active transactions
 
 -   Heartbeat timestamps
+-   Pricing, revenue, and driver analytics
+-   Accounts, locations, tariffs, QR codes
+-   Admin users (super admin only)
+
+Login:
+- `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `backend/.env`
+
+* * * * *
+
+### 4\. Open the QR Driver Page
+
+Open in a browser (replace with your code):
+
+`frontend/qr.html?code=YOUR_QR_CODE`
+
+* * * * *
+
+Charger ID Format
+-----------------
+
+Charger IDs accept letters, numbers, spaces, dots, dashes, and underscores (max 64 chars).
 
 * * * * *
 
@@ -143,6 +176,15 @@ Recommended Demo Flow
 
 This demonstrates a **real OCPP lifecycle** end-to-end.
 
+Tap-like Onboarding Flow
+------------------------
+
+1. Create an **Account** (owner/operator)
+2. Create a **Tariff** (start, energy, idle fees)
+3. Create a **Location** with GPS + assign the tariff
+4. Assign a **Charger** to the location
+5. Create a **QR code** linked to the charger
+
 * * * * *
 
 Current Scope
@@ -158,10 +200,6 @@ This repository intentionally focuses on:
 
 It does **not** yet include:
 
--   Persistent storage
-
--   Authentication
-
 -   Production deployment configuration
 
 * * * * *
@@ -170,10 +208,6 @@ Roadmap
 -------
 
 Planned enhancements include:
-
--   Database persistence (PostgreSQL)
-
--   Authentication and role-based access
 
 -   Dockerisation and CI/CD
 
