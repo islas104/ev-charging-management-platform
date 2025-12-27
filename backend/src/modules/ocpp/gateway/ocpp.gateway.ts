@@ -34,7 +34,7 @@ export class OcppGateway
     const chargerId = url.searchParams.get('chargerId') ?? 'UNKNOWN';
     const token = url.searchParams.get('token') ?? '';
 
-    const chargerIdOk = /^[A-Za-z0-9_-]{1,64}$/.test(chargerId);
+    const chargerIdOk = /^[A-Za-z0-9._ -]{1,64}$/.test(chargerId);
     if (!chargerIdOk) {
       this.logger.warn({ chargerId }, 'OCPP rejected: invalid chargerId');
       client.close(1008, 'Invalid chargerId');
@@ -83,7 +83,7 @@ export class OcppGateway
     });
   }
 
-  handleDisconnect(client: WebSocket) {
+  async handleDisconnect(client: WebSocket) {
     const meta = (client as any).ocpp;
 
     this.logger.log(
@@ -91,6 +91,12 @@ export class OcppGateway
       'OCPP charger disconnected',
     );
 
-    if (meta?.chargerId) this.registry.unregister(meta.chargerId);
+    if (meta?.chargerId) {
+      this.registry.unregister(meta.chargerId);
+      await this.prisma.charger.update({
+        where: { chargerId: meta.chargerId },
+        data: { lastSeenAt: null },
+      }).catch(() => {});
+    }
   }
 }

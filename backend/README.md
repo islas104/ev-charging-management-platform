@@ -100,6 +100,11 @@ Easee One is supported with OCPP 1.6.
 
 ---
 
+Charger ID Format
+-----------------
+
+Charger IDs accept letters, numbers, spaces, dots, dashes, and underscores (max 64 chars).
+
 ## Charger & Transaction State
 
 State is persisted in PostgreSQL using Prisma.

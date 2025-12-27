@@ -150,6 +150,13 @@ Open in a browser (replace with your code):
 
 * * * * *
 
+Charger ID Format
+-----------------
+
+Charger IDs accept letters, numbers, spaces, dots, dashes, and underscores (max 64 chars).
+
+* * * * *
+
 Recommended Demo Flow
 ---------------------
 

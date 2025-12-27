@@ -433,6 +433,7 @@
         background: var(--idle);
       }
       .pill.online .dot { background: var(--good); }
+      .pill.inuse .dot { background: #60a5fa; }
       .pill.offline .dot { background: rgba(226, 232, 240, 0.50); }
 
       .connectors {
@@ -1998,7 +1999,12 @@
 
         els.chargersTbody.innerHTML = rows.map(c => {
           const isOnline = String(c.connectivity).toLowerCase() === 'online';
-          const pillClass = isOnline ? 'online' : 'offline';
+          const isInUse = isOnline && (c.connectors || []).some(x => {
+            const status = String(x.status || '').toLowerCase();
+            return status.includes('charging') || status.includes('occupied');
+          });
+          const pillClass = isOnline ? (isInUse ? 'inuse' : 'online') : 'offline';
+          const pillLabel = isOnline ? (isInUse ? 'In use' : 'Online') : 'Offline';
 
           const click = `data-charger="${String(c.chargerId).replace(/"/g, '&quot;')}"`;
 
@@ -2013,7 +2019,7 @@
               <td>
                 <span class="pill ${pillClass}">
                   <span class="dot"></span>
-                  ${c.connectivity ?? '—'}
+                  ${pillLabel}
                 </span>
               </td>
               <td>${fmtDate(c.lastMessageAt)}</td>
