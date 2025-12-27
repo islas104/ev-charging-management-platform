@@ -222,7 +222,7 @@ Planned enhancements include:
 License
 -------
 
-MIT
+All rights reserved. Proprietary and confidential.
 
 * * * * *
 
