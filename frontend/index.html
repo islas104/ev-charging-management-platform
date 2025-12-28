@@ -305,6 +305,30 @@
             <span class="chip" id="socketState">Socket: idle</span>
             <span class="chip" id="lastAction">Last action: —</span>
           </div>
+
+          <div class="divider"></div>
+
+          <div class="meta">Fleet mode simulates many chargers at once.</div>
+
+          <div class="field">
+            <label for="fleetPrefixInput">Fleet ID Prefix</label>
+            <input id="fleetPrefixInput" value="FLEET-CHARGER" />
+          </div>
+
+          <div class="field">
+            <label for="fleetCountInput">Fleet Size</label>
+            <input id="fleetCountInput" type="number" value="50" min="1" max="200" />
+          </div>
+
+          <div class="row" style="margin-top: 14px;">
+            <button class="btn" id="fleetStartBtn">Launch Fleet</button>
+            <button class="btn" id="fleetStopBtn">Shutdown Fleet</button>
+          </div>
+
+          <div class="row">
+            <span class="chip" id="fleetState">Fleet: idle</span>
+            <span class="chip" id="fleetOnline">Online: 0</span>
+          </div>
         </section>
 
         <section class="panel session">
@@ -380,6 +404,17 @@
       const stopBtn = document.getElementById('stopBtn');
       const meterBtn = document.getElementById('meterBtn');
       const statusBtn = document.getElementById('statusBtn');
+      const fleetPrefixInput = document.getElementById('fleetPrefixInput');
+      const fleetCountInput = document.getElementById('fleetCountInput');
+      const fleetStartBtn = document.getElementById('fleetStartBtn');
+      const fleetStopBtn = document.getElementById('fleetStopBtn');
+      const fleetState = document.getElementById('fleetState');
+      const fleetOnline = document.getElementById('fleetOnline');
+
+      const fleetSockets = new Map();
+      const fleetHeartbeats = new Map();
+      let fleetOnlineCount = 0;
+      let fleetTargetCount = 0;
 
       function log(message, dim = false) {
         const ts = new Date().toLocaleTimeString();
@@ -408,6 +443,7 @@
       }
 
       setButtons('disconnected');
+      updateFleetStatus();
 
       function nextId() {
         return Math.random().toString(36).substring(2, 10);
@@ -424,6 +460,116 @@
         subtitle.textContent = `Charger ID: ${chargerId}`;
         const separator = base.includes('?') ? '&' : '?';
         return `${base}${separator}chargerId=${encodeURIComponent(chargerId)}`;
+      }
+
+      function buildFleetChargerId(prefix, index) {
+        const id = String(index + 1).padStart(3, '0');
+        return `${prefix}-${id}`;
+      }
+
+      function buildFleetUrl(chargerId) {
+        const base = String(wsBaseInput.value || '').trim();
+        if (!base || !chargerId) return '';
+        const separator = base.includes('?') ? '&' : '?';
+        return `${base}${separator}chargerId=${encodeURIComponent(chargerId)}`;
+      }
+
+      function updateFleetStatus() {
+        if (fleetState) {
+          const label = fleetTargetCount ? `Fleet: ${fleetOnlineCount}/${fleetTargetCount}` : 'Fleet: idle';
+          fleetState.textContent = label;
+        }
+        if (fleetOnline) {
+          fleetOnline.textContent = `Online: ${fleetOnlineCount}`;
+        }
+      }
+
+      function sendFleet(socketRef, action, payload, chargerId) {
+        if (!socketRef || socketRef.readyState !== WebSocket.OPEN) return;
+        const msg = [2, nextId(), action, payload];
+        socketRef.send(JSON.stringify(msg));
+        log(`SEND  ${action} (${chargerId})`, true);
+      }
+
+      function connectFleetCharger(chargerId) {
+        if (fleetSockets.has(chargerId)) return;
+        const url = buildFleetUrl(chargerId);
+        if (!url) {
+          log('WARN  Missing WebSocket URL for fleet.', true);
+          return;
+        }
+
+        const ws = new WebSocket(url, ['ocpp1.6']);
+        fleetSockets.set(chargerId, ws);
+
+        let opened = false;
+
+        ws.onopen = () => {
+          opened = true;
+          fleetOnlineCount += 1;
+          updateFleetStatus();
+          sendFleet(ws, 'BootNotification', {
+            chargePointVendor: 'CloudTunnel',
+            chargePointModel: 'CT-AC-7KW',
+          }, chargerId);
+          sendFleet(ws, 'StatusNotification', {
+            connectorId: 1,
+            errorCode: 'NoError',
+            status: 'Available',
+            timestamp: new Date().toISOString(),
+          }, chargerId);
+
+          const timer = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              sendFleet(ws, 'Heartbeat', {}, chargerId);
+            }
+          }, 30000);
+          fleetHeartbeats.set(chargerId, timer);
+        };
+
+        ws.onclose = () => {
+          if (opened) {
+            fleetOnlineCount = Math.max(fleetOnlineCount - 1, 0);
+          }
+          const timer = fleetHeartbeats.get(chargerId);
+          if (timer) clearInterval(timer);
+          fleetHeartbeats.delete(chargerId);
+          fleetSockets.delete(chargerId);
+          updateFleetStatus();
+        };
+
+        ws.onerror = () => {
+          log(`ERROR: Fleet socket error (${chargerId})`, true);
+        };
+      }
+
+      function launchFleet() {
+        shutdownFleet();
+        const prefix = String(fleetPrefixInput?.value || '').trim() || 'FLEET-CHARGER';
+        const count = Math.min(Math.max(Number(fleetCountInput?.value || 0), 1), 200);
+        if (!Number.isFinite(count) || count <= 0) {
+          log('WARN  Provide a valid fleet size.', true);
+          return;
+        }
+        fleetTargetCount = count;
+        updateFleetStatus();
+        for (let i = 0; i < count; i += 1) {
+          const chargerId = buildFleetChargerId(prefix, i);
+          setTimeout(() => connectFleetCharger(chargerId), i * 80);
+        }
+      }
+
+      function shutdownFleet() {
+        for (const [chargerId, ws] of fleetSockets.entries()) {
+          try { ws.close(); } catch { /* ignore */ }
+          const timer = fleetHeartbeats.get(chargerId);
+          if (timer) clearInterval(timer);
+        }
+        fleetSockets.clear();
+        fleetHeartbeats.clear();
+        fleetOnlineCount = 0;
+        fleetTargetCount = 0;
+        updateFleetStatus();
       }
 
       function connect() {
@@ -621,6 +767,8 @@
       stopBtn.addEventListener('click', stop);
       meterBtn.addEventListener('click', sendMeterValues);
       statusBtn.addEventListener('click', toggleStatusNotification);
+      fleetStartBtn.addEventListener('click', launchFleet);
+      fleetStopBtn.addEventListener('click', shutdownFleet);
     </script>
   </body>
 </html>

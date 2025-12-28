@@ -977,20 +977,20 @@
             <div class="panel" style="margin-top:14px;">
               <div class="panel-header">
                 <div>
-                  <div class="panel-title">Driver energy distribution</div>
-                  <div class="subtext">Top 10 drivers by kWh</div>
+                  <div class="panel-title" id="analyticsPanelTitle">Driver energy distribution</div>
+                  <div class="subtext" id="analyticsPanelSubtext">Top 10 drivers by kWh</div>
                 </div>
               </div>
 
               <div class="split">
                 <div>
-                  <div class="subtext" style="margin-bottom:8px;">Energy by driver (kWh)</div>
+                  <div class="subtext" id="analyticsPrimaryLabel" style="margin-bottom:8px;">Energy by driver (kWh)</div>
                   <div class="chart-box">
                     <canvas id="analyticsEnergyChart"></canvas>
                   </div>
                 </div>
-                <div>
-                  <div class="subtext" style="margin-bottom:8px;">Sessions by driver</div>
+                <div id="analyticsSecondaryWrap">
+                  <div class="subtext" id="analyticsSecondaryLabel" style="margin-bottom:8px;">Sessions by driver</div>
                   <div class="chart-box">
                     <canvas id="analyticsSessionsChart"></canvas>
                   </div>
@@ -1001,10 +1001,19 @@
             <div class="panel" style="margin-top:14px;">
               <div class="panel-header">
                 <div>
-                  <div class="panel-title">Top drivers by energy</div>
-                  <div class="subtext">Last 30 days (kWh)</div>
+                  <div class="panel-title" id="analyticsTableTitle">Top drivers by energy</div>
+                  <div class="subtext" id="analyticsTableSubtext">Last 30 days (kWh)</div>
                 </div>
                 <div class="row">
+                  <select
+                    id="analyticsMetricSelect"
+                    style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.22); background: rgba(15,23,42,0.45); color: rgba(226,232,240,0.9); font-weight: 700;"
+                  >
+                    <option value="energy">Top drivers by energy</option>
+                    <option value="sessions">Most used drivers (sessions)</option>
+                    <option value="duration">Longest sessions</option>
+                    <option value="utilization">Highest utilized chargers</option>
+                  </select>
                   <button class="btn secondary" id="btnAnalyticsRefresh">Refresh analytics</button>
                 </div>
               </div>
@@ -1015,16 +1024,7 @@
 
               <div style="overflow:auto">
                 <table>
-                  <thead>
-                    <tr>
-                      <th style="min-width: 80px;">Rank</th>
-                      <th style="min-width: 240px;">Driver</th>
-                      <th style="min-width: 200px;">RFID</th>
-                      <th style="min-width: 160px;">Sessions</th>
-                      <th style="min-width: 180px;">Energy (kWh)</th>
-                      <th style="min-width: 220px;">Last session</th>
-                    </tr>
-                  </thead>
+                  <thead id="analyticsThead"></thead>
                   <tbody id="analyticsTbody">
                     <tr><td colspan="6" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
                   </tbody>
@@ -1397,6 +1397,7 @@
                       style="margin-top:10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 14px; font-weight: 900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
                     >
                       <option value="ADMIN">ADMIN</option>
+                      <option value="SITE_MANAGER">SITE_MANAGER</option>
                       <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                     </select>
                   </div>
@@ -1629,9 +1630,18 @@
         // analytics
         btnAnalyticsRefresh: document.getElementById('btnAnalyticsRefresh'),
         analyticsTbody: document.getElementById('analyticsTbody'),
+        analyticsThead: document.getElementById('analyticsThead'),
         analyticsMeta: document.getElementById('analyticsMeta'),
         analyticsEnergyChart: document.getElementById('analyticsEnergyChart'),
         analyticsSessionsChart: document.getElementById('analyticsSessionsChart'),
+        analyticsMetricSelect: document.getElementById('analyticsMetricSelect'),
+        analyticsPanelTitle: document.getElementById('analyticsPanelTitle'),
+        analyticsPanelSubtext: document.getElementById('analyticsPanelSubtext'),
+        analyticsPrimaryLabel: document.getElementById('analyticsPrimaryLabel'),
+        analyticsSecondaryLabel: document.getElementById('analyticsSecondaryLabel'),
+        analyticsSecondaryWrap: document.getElementById('analyticsSecondaryWrap'),
+        analyticsTableTitle: document.getElementById('analyticsTableTitle'),
+        analyticsTableSubtext: document.getElementById('analyticsTableSubtext'),
 
         // accounts
         btnCreateAccount: document.getElementById('btnCreateAccount'),
@@ -2290,14 +2300,128 @@
         toast('success', 'Saved', 'Pricing updated.');
       }
 
+      function getAnalyticsMetric() {
+        return String(els.analyticsMetricSelect?.value || 'energy').toLowerCase();
+      }
+
+      function updateAnalyticsTitles(metric) {
+        const meta = {
+          energy: {
+            panelTitle: 'Driver energy distribution',
+            panelSub: 'Top 10 drivers by kWh',
+            tableTitle: 'Top drivers by energy',
+            tableSub: 'Last 30 days (kWh)',
+            primaryLabel: 'Energy by driver (kWh)',
+            secondaryLabel: 'Sessions by driver',
+          },
+          sessions: {
+            panelTitle: 'Driver session distribution',
+            panelSub: 'Top 10 drivers by sessions',
+            tableTitle: 'Most used drivers',
+            tableSub: 'Last 30 days (sessions)',
+            primaryLabel: 'Sessions by driver',
+            secondaryLabel: 'Energy by driver (kWh)',
+          },
+          duration: {
+            panelTitle: 'Session duration distribution',
+            panelSub: 'Top 10 longest sessions',
+            tableTitle: 'Longest sessions',
+            tableSub: 'Last 30 days (minutes)',
+            primaryLabel: 'Session duration (minutes)',
+            secondaryLabel: '',
+          },
+          utilization: {
+            panelTitle: 'Charger utilization distribution',
+            panelSub: 'Top 10 chargers by utilization',
+            tableTitle: 'Highest utilized chargers',
+            tableSub: 'Last 30 days (%)',
+            primaryLabel: 'Utilization (%)',
+            secondaryLabel: '',
+          },
+        }[metric] || {};
+
+        if (els.analyticsPanelTitle && meta.panelTitle) els.analyticsPanelTitle.textContent = meta.panelTitle;
+        if (els.analyticsPanelSubtext && meta.panelSub) els.analyticsPanelSubtext.textContent = meta.panelSub;
+        if (els.analyticsTableTitle && meta.tableTitle) els.analyticsTableTitle.textContent = meta.tableTitle;
+        if (els.analyticsTableSubtext && meta.tableSub) els.analyticsTableSubtext.textContent = meta.tableSub;
+        if (els.analyticsPrimaryLabel && meta.primaryLabel) els.analyticsPrimaryLabel.textContent = meta.primaryLabel;
+        if (els.analyticsSecondaryLabel && meta.secondaryLabel) els.analyticsSecondaryLabel.textContent = meta.secondaryLabel;
+        if (els.analyticsSecondaryWrap) {
+          els.analyticsSecondaryWrap.style.display = meta.secondaryLabel ? '' : 'none';
+        }
+      }
+
       function renderAnalytics() {
-        if (!els.analyticsTbody) return;
+        if (!els.analyticsTbody || !els.analyticsThead) return;
         const items = Array.isArray(analyticsCache?.items) ? analyticsCache.items : [];
+        const metric = String(analyticsCache?.metric || getAnalyticsMetric());
+
+        updateAnalyticsTitles(metric);
 
         if (!items.length) {
-          els.analyticsTbody.innerHTML = `<tr><td colspan="6" style="color: rgba(226, 232, 240, 0.65);">No driver data yet.</td></tr>`;
+          els.analyticsThead.innerHTML = '';
+          els.analyticsTbody.innerHTML = `<tr><td colspan="6" style="color: rgba(226, 232, 240, 0.65);">No analytics data yet.</td></tr>`;
           return;
         }
+
+        if (metric === 'duration') {
+          els.analyticsThead.innerHTML = `
+            <tr>
+              <th style="min-width: 80px;">Rank</th>
+              <th style="min-width: 200px;">Charger</th>
+              <th style="min-width: 220px;">Driver</th>
+              <th style="min-width: 200px;">RFID</th>
+              <th style="min-width: 180px;">Duration (min)</th>
+              <th style="min-width: 220px;">Started</th>
+            </tr>
+          `;
+          els.analyticsTbody.innerHTML = items.map((it, idx) => `
+            <tr>
+              <td style="font-weight:980;">#${idx + 1}</td>
+              <td style="font-weight:950;">${escapeHtml(it.chargerId ?? '—')}</td>
+              <td>${escapeHtml(it.driverName ?? 'Unassigned')}</td>
+              <td>${escapeHtml(it.idTag ?? '—')}</td>
+              <td>${Number(it.durationMinutes ?? 0).toFixed(1)}</td>
+              <td>${fmtDate(it.startedAt)}</td>
+            </tr>
+          `).join('');
+          return;
+        }
+
+        if (metric === 'utilization') {
+          els.analyticsThead.innerHTML = `
+            <tr>
+              <th style="min-width: 80px;">Rank</th>
+              <th style="min-width: 220px;">Charger</th>
+              <th style="min-width: 200px;">Utilization</th>
+              <th style="min-width: 180px;">Active minutes</th>
+              <th style="min-width: 160px;">Sessions</th>
+              <th style="min-width: 220px;">Last session</th>
+            </tr>
+          `;
+          els.analyticsTbody.innerHTML = items.map((it, idx) => `
+            <tr>
+              <td style="font-weight:980;">#${idx + 1}</td>
+              <td style="font-weight:950;">${escapeHtml(it.chargerId ?? '—')}</td>
+              <td>${Number(it.utilizationPct ?? 0).toFixed(1)}%</td>
+              <td>${Number(it.activeMinutes ?? 0).toFixed(0)}</td>
+              <td>${Number(it.sessions ?? 0)}</td>
+              <td>${fmtDate(it.lastSessionAt)}</td>
+            </tr>
+          `).join('');
+          return;
+        }
+
+        els.analyticsThead.innerHTML = `
+          <tr>
+            <th style="min-width: 80px;">Rank</th>
+            <th style="min-width: 240px;">Driver</th>
+            <th style="min-width: 200px;">RFID</th>
+            <th style="min-width: 160px;">Sessions</th>
+            <th style="min-width: 180px;">Energy (kWh)</th>
+            <th style="min-width: 220px;">Last session</th>
+          </tr>
+        `;
 
         els.analyticsTbody.innerHTML = items.map((it, idx) => {
           const energy = Number(it.energyKwh ?? 0);
@@ -2325,10 +2449,18 @@
 
         const items = Array.isArray(analyticsCache.items) ? analyticsCache.items : [];
         const top = items.slice(0, 10);
+        const metric = String(analyticsCache.metric || getAnalyticsMetric());
 
-        const labels = top.map(x => String(x.driverName ?? x.idTag ?? '—'));
+        const isDriverMetric = metric === 'energy' || metric === 'sessions';
+        const labels = top.map((x) => {
+          if (metric === 'utilization') return String(x.chargerId ?? '—');
+          if (metric === 'duration') return String(x.chargerId ?? '—');
+          return String(x.driverName ?? x.idTag ?? '—');
+        });
         const energy = top.map(x => Number(x.energyKwh ?? 0));
         const sessions = top.map(x => Number(x.sessions ?? 0));
+        const duration = top.map(x => Number(x.durationMinutes ?? 0));
+        const utilization = top.map(x => Number(x.utilizationPct ?? 0));
 
         if (els.analyticsEnergyChart) {
           destroyChart(analyticsEnergyChartInstance);
@@ -2337,10 +2469,10 @@
             data: {
               labels,
               datasets: [{
-                label: 'Energy (kWh)',
-                data: energy,
-                backgroundColor: 'rgba(124, 58, 237, 0.75)',
-                borderColor: 'rgba(124, 58, 237, 1)',
+                label: metric === 'utilization' ? 'Utilization (%)' : metric === 'duration' ? 'Duration (min)' : metric === 'sessions' ? 'Sessions' : 'Energy (kWh)',
+                data: metric === 'utilization' ? utilization : metric === 'duration' ? duration : metric === 'sessions' ? sessions : energy,
+                backgroundColor: metric === 'utilization' ? 'rgba(56, 189, 248, 0.75)' : 'rgba(124, 58, 237, 0.75)',
+                borderColor: metric === 'utilization' ? 'rgba(56, 189, 248, 1)' : 'rgba(124, 58, 237, 1)',
                 borderWidth: 1,
                 borderRadius: 8,
               }],
@@ -2352,13 +2484,27 @@
                 legend: { display: false },
                 tooltip: {
                   callbacks: {
-                    label: (ctx) => ` ${Number(ctx.parsed.y || 0).toFixed(2)} kWh`,
+                    label: (ctx) => {
+                      const val = Number(ctx.parsed.y || 0);
+                      if (metric === 'utilization') return ` ${val.toFixed(1)}%`;
+                      if (metric === 'duration') return ` ${val.toFixed(1)} min`;
+                      if (metric === 'sessions') return ` ${val.toFixed(0)} sessions`;
+                      return ` ${val.toFixed(2)} kWh`;
+                    },
                   },
                 },
               },
               scales: {
                 y: {
-                  ticks: { callback: (v) => `${Number(v).toFixed(0)} kWh` },
+                  ticks: {
+                    callback: (v) => {
+                      const val = Number(v);
+                      if (metric === 'utilization') return `${val.toFixed(0)}%`;
+                      if (metric === 'duration') return `${val.toFixed(0)} min`;
+                      if (metric === 'sessions') return `${val.toFixed(0)}`;
+                      return `${val.toFixed(0)} kWh`;
+                    },
+                  },
                   grid: { color: 'rgba(148, 163, 184, 0.22)' },
                 },
                 x: { grid: { display: false } },
@@ -2367,17 +2513,23 @@
           });
         }
 
-        if (els.analyticsSessionsChart) {
+        if (!isDriverMetric && els.analyticsSessionsChart) {
+          destroyChart(analyticsSessionsChartInstance);
+          analyticsSessionsChartInstance = null;
+          return;
+        }
+
+        if (els.analyticsSessionsChart && isDriverMetric) {
           destroyChart(analyticsSessionsChartInstance);
           analyticsSessionsChartInstance = new Chart(els.analyticsSessionsChart, {
             type: 'line',
             data: {
               labels,
               datasets: [{
-                label: 'Sessions',
-                data: sessions,
-                borderColor: '#22c55e',
-                backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                label: metric === 'sessions' ? 'Energy (kWh)' : 'Sessions',
+                data: metric === 'sessions' ? energy : sessions,
+                borderColor: metric === 'sessions' ? '#a855f7' : '#22c55e',
+                backgroundColor: metric === 'sessions' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(34, 197, 94, 0.12)',
                 fill: true,
                 tension: 0.25,
                 pointRadius: 2,
@@ -2391,7 +2543,9 @@
               },
               scales: {
                 y: {
-                  ticks: { callback: (v) => `${v}` },
+                  ticks: {
+                    callback: (v) => metric === 'sessions' ? `${Number(v).toFixed(0)} kWh` : `${v}`,
+                  },
                   grid: { color: 'rgba(148, 163, 184, 0.22)' },
                 },
                 x: { grid: { display: false } },
@@ -2402,10 +2556,12 @@
       }
 
       async function loadAnalytics(range = '30d') {
+        const metric = getAnalyticsMetric();
         const data = await fetchJson(
-          `${API_BASE}/admin/analytics/top-drivers?range=${encodeURIComponent(range)}&meterUnit=wh`,
+          `${API_BASE}/admin/analytics/leaderboard?range=${encodeURIComponent(range)}&metric=${encodeURIComponent(metric)}`,
         );
         analyticsCache = data;
+        analyticsCache.metric = metric;
         if (els.analyticsMeta) {
           els.analyticsMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
         }
@@ -2740,8 +2896,8 @@
           toast('warn', 'Missing fields', 'Email and password are required.');
           return;
         }
-        if (role === 'ADMIN' && !Number.isFinite(accountId)) {
-          toast('warn', 'Missing fields', 'Account ID is required for ADMIN users.');
+        if ((role === 'ADMIN' || role === 'SITE_MANAGER') && !Number.isFinite(accountId)) {
+          toast('warn', 'Missing fields', 'Account ID is required for ADMIN and SITE_MANAGER users.');
           return;
         }
 
@@ -3037,6 +3193,10 @@
       });
 
       els.btnAnalyticsRefresh?.addEventListener('click', () => {
+        loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
+      });
+
+      els.analyticsMetricSelect?.addEventListener('change', () => {
         loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
       });
 

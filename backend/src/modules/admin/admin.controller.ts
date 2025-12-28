@@ -17,7 +17,7 @@ import {
 } from './dto/admin.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Roles('ADMIN', 'SITE_MANAGER', 'SUPER_ADMIN')
 @Controller('admin')
 export class AdminController {
   constructor(
@@ -231,14 +231,19 @@ export class AdminController {
     const email = String(body.email ?? '').trim().toLowerCase();
     const password = String(body.password ?? '');
     const roleRaw = String(body.role ?? 'ADMIN').toUpperCase();
-    const role = roleRaw === 'SUPER_ADMIN' ? AdminRole.SUPER_ADMIN : AdminRole.ADMIN;
+    const role =
+      roleRaw === 'SUPER_ADMIN'
+        ? AdminRole.SUPER_ADMIN
+        : roleRaw === 'SITE_MANAGER'
+          ? AdminRole.SITE_MANAGER
+          : AdminRole.ADMIN;
     const accountIdNum = body.accountId === undefined ? null : Number(body.accountId);
 
     if (!email || !password) {
       return { ok: false, error: 'email and password are required' };
     }
-    if (role === AdminRole.ADMIN && !Number.isFinite(accountIdNum)) {
-      return { ok: false, error: 'accountId is required for ADMIN' };
+    if ((role === AdminRole.ADMIN || role === AdminRole.SITE_MANAGER) && !Number.isFinite(accountIdNum)) {
+      return { ok: false, error: 'accountId is required for ADMIN or SITE_MANAGER' };
     }
 
     let accountId: number | null = null;
@@ -738,6 +743,209 @@ export class AdminController {
     return {
       range: `${days}d`,
       meterUnit: unit,
+      totalDrivers: items.length,
+      items,
+    };
+  }
+
+  /**
+   * Analytics: leaderboards with selectable metrics.
+   * GET /admin/analytics/leaderboard?range=30d&metric=energy|sessions|duration|utilization
+   */
+  @Get('analytics/leaderboard')
+  async getAnalyticsLeaderboard(
+    @Req() req: Request,
+    @Query('range') range?: string,
+    @Query('metric') metricRaw?: string,
+  ) {
+    const scope = await this.getAccountScope(req);
+    const days = parseRangeDays(range ?? '30d');
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const metricInput = String(metricRaw ?? 'energy').trim().toLowerCase();
+    const metric =
+      metricInput === 'sessions' || metricInput === 'most-used' || metricInput === 'most_used'
+        ? 'sessions'
+        : metricInput === 'duration'
+          ? 'duration'
+          : metricInput === 'utilization'
+            ? 'utilization'
+            : 'energy';
+
+    const resolveDrivers = async (tags: string[]) => {
+      const fobs = tags.length
+        ? await this.prisma.rfidFob.findMany({
+            where: { uid: { in: tags } },
+            include: { driver: true },
+          })
+        : [];
+      const fobByUid = new Map<string, typeof fobs[number]>();
+      for (const f of fobs) fobByUid.set(f.uid, f);
+      return (tag: string) => {
+        const fob = fobByUid.get(tag);
+        return {
+          driverName: fob?.driver?.name ?? fob?.label ?? tag,
+          driverId: fob?.driver?.id ?? null,
+        };
+      };
+    };
+
+    if (metric === 'duration') {
+      const sessions = await this.prisma.transaction.findMany({
+        where: {
+          startedAt: { gte: since },
+          stoppedAt: { not: null },
+          ...(scope.accountIds
+            ? { charger: { location: { accountId: { in: scope.accountIds } } } }
+            : {}),
+        },
+        select: {
+          id: true,
+          idTag: true,
+          startedAt: true,
+          stoppedAt: true,
+          charger: { select: { chargerId: true } },
+        },
+      });
+
+      const tags = Array.from(
+        new Set(sessions.map((s) => String(s.idTag ?? '').trim()).filter(Boolean)),
+      );
+      const getDriver = await resolveDrivers(tags);
+
+      const items = sessions
+        .map((s) => {
+          const tag = String(s.idTag ?? '').trim();
+          const durationMs = s.stoppedAt ? s.stoppedAt.getTime() - s.startedAt.getTime() : 0;
+          return {
+            sessionId: s.id,
+            chargerId: s.charger?.chargerId ?? '—',
+            idTag: tag || '—',
+            durationMinutes: round4(Math.max(durationMs, 0) / 60000),
+            startedAt: s.startedAt,
+            stoppedAt: s.stoppedAt,
+            ...getDriver(tag),
+          };
+        })
+        .sort((a, b) => b.durationMinutes - a.durationMinutes)
+        .slice(0, 20);
+
+      return {
+        range: `${days}d`,
+        metric,
+        totalSessions: items.length,
+        items,
+      };
+    }
+
+    if (metric === 'utilization') {
+      const now = new Date();
+      const windowMs = Math.max(now.getTime() - since.getTime(), 1);
+      const txs = await this.prisma.transaction.findMany({
+        where: {
+          startedAt: { gte: since },
+          ...(scope.accountIds
+            ? { charger: { location: { accountId: { in: scope.accountIds } } } }
+            : {}),
+        },
+        select: {
+          startedAt: true,
+          stoppedAt: true,
+          charger: { select: { chargerId: true } },
+        },
+      });
+
+      const byCharger = new Map<string, { totalMs: number; sessions: number; lastSessionAt: Date }>();
+      for (const t of txs) {
+        const chargerId = t.charger?.chargerId ?? '—';
+        const start = t.startedAt;
+        const end = t.stoppedAt ?? now;
+        const durationMs = Math.max(end.getTime() - start.getTime(), 0);
+        const cur = byCharger.get(chargerId) ?? { totalMs: 0, sessions: 0, lastSessionAt: start };
+        cur.totalMs += durationMs;
+        cur.sessions += 1;
+        if (start > cur.lastSessionAt) cur.lastSessionAt = start;
+        byCharger.set(chargerId, cur);
+      }
+
+      const items = Array.from(byCharger.entries()).map(([chargerId, agg]) => ({
+        chargerId,
+        utilizationPct: round4((agg.totalMs / windowMs) * 100),
+        activeMinutes: round4(agg.totalMs / 60000),
+        sessions: agg.sessions,
+        lastSessionAt: agg.lastSessionAt,
+      }));
+
+      items.sort((a, b) => b.utilizationPct - a.utilizationPct);
+
+      return {
+        range: `${days}d`,
+        metric,
+        totalChargers: items.length,
+        items,
+      };
+    }
+
+    const txs = await this.prisma.transaction.findMany({
+      where: {
+        startedAt: { gte: since },
+        meterStop: { not: null },
+        ...(scope.accountIds
+          ? { charger: { location: { accountId: { in: scope.accountIds } } } }
+          : {}),
+      },
+      select: {
+        idTag: true,
+        meterStart: true,
+        meterStop: true,
+        startedAt: true,
+      },
+      orderBy: { startedAt: 'asc' },
+    });
+
+    const byTag = new Map<string, { sessions: number; kwh: number; lastSeen: Date }>();
+    for (const t of txs) {
+      const tag = String(t.idTag ?? '').trim();
+      if (!tag) continue;
+
+      const ms = Number(t.meterStart);
+      const me = Number(t.meterStop);
+      if (!Number.isFinite(ms) || !Number.isFinite(me)) continue;
+
+      const kwh = (me - ms) / 1000;
+      if (!Number.isFinite(kwh) || kwh <= 0) continue;
+
+      const cur = byTag.get(tag) ?? { sessions: 0, kwh: 0, lastSeen: t.startedAt };
+      cur.sessions += 1;
+      cur.kwh += kwh;
+      if (t.startedAt > cur.lastSeen) cur.lastSeen = t.startedAt;
+      byTag.set(tag, cur);
+    }
+
+    const tags = [...byTag.keys()];
+    const getDriver = await resolveDrivers(tags);
+
+    const items = tags.map(tag => {
+      const agg = byTag.get(tag)!;
+      const driver = getDriver(tag);
+      return {
+        idTag: tag,
+        driverName: driver.driverName,
+        driverId: driver.driverId,
+        sessions: agg.sessions,
+        energyKwh: round4(agg.kwh),
+        lastSessionAt: agg.lastSeen,
+      };
+    });
+
+    if (metric === 'sessions') {
+      items.sort((a, b) => b.sessions - a.sessions);
+    } else {
+      items.sort((a, b) => b.energyKwh - a.energyKwh);
+    }
+
+    return {
+      range: `${days}d`,
+      metric,
       totalDrivers: items.length,
       items,
     };

@@ -220,6 +220,7 @@ model AdminUser {
 
 enum AdminRole {
   ADMIN
+  SITE_MANAGER
   SUPER_ADMIN
 }
 

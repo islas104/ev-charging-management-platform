@@ -20,7 +20,7 @@ export class CreateAdminUserDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['ADMIN', 'SUPER_ADMIN'])
+  @IsIn(['ADMIN', 'SITE_MANAGER', 'SUPER_ADMIN'])
   role?: string;
 
   @IsOptional()
