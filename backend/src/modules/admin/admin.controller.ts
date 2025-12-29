@@ -951,6 +951,207 @@ export class AdminController {
     };
   }
 
+  // ===== Billing (manual invoicing) =====
+
+  @Get('billing/invoices')
+  async listBillingInvoices(
+    @Req() req: Request,
+    @Query('accountId') accountIdRaw?: string,
+  ) {
+    const scope = await this.getAccountScope(req);
+    const accountIdNum = accountIdRaw ? Number(accountIdRaw) : NaN;
+    const hasAccountId = Number.isFinite(accountIdNum);
+
+    const where =
+      scope.accountIds
+        ? { accountId: { in: scope.accountIds } }
+        : hasAccountId
+          ? { accountId: accountIdNum }
+          : {};
+
+    return this.prisma.billingInvoice.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        account: { select: { id: true, name: true, email: true } },
+      },
+    });
+  }
+
+  @Get('billing/invoices/:id')
+  async getBillingInvoice(@Req() req: Request, @Param('id') id: string) {
+    const scope = await this.getAccountScope(req);
+    const invoiceId = Number(id);
+    if (!Number.isFinite(invoiceId)) return { ok: false, error: 'invalid invoice id' };
+
+    const invoice = await this.prisma.billingInvoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        account: { select: { id: true, name: true, email: true } },
+        lines: {
+          orderBy: { startedAt: 'desc' },
+          take: 200,
+        },
+      },
+    });
+    if (!invoice) return { ok: false, error: 'invoice not found' };
+
+    if (scope.accountIds && !scope.accountIds.includes(invoice.accountId)) {
+      throw new ForbiddenException('invoice not in scope');
+    }
+
+    return invoice;
+  }
+
+  @Post('billing/invoices/generate')
+  async generateBillingInvoice(@Req() req: Request, @Body() body: any) {
+    const scope = await this.getAccountScope(req);
+    const accountIdRaw = body?.accountId;
+    const accountId = Number(
+      scope.accountIds
+        ? scope.accountId
+        : accountIdRaw,
+    );
+
+    if (!Number.isFinite(accountId)) {
+      return { ok: false, error: 'accountId is required' };
+    }
+
+    if (scope.accountIds && !scope.accountIds.includes(accountId)) {
+      throw new ForbiddenException('accountId not in scope');
+    }
+
+    const range = String(body?.range ?? '30d');
+    const days = parseRangeDays(range);
+    const now = new Date();
+    const startRaw = body?.periodStart ? new Date(body.periodStart) : null;
+    const endRaw = body?.periodEnd ? new Date(body.periodEnd) : null;
+
+    const periodEnd = endRaw && !Number.isNaN(endRaw.getTime()) ? endRaw : now;
+    const periodStart =
+      startRaw && !Number.isNaN(startRaw.getTime())
+        ? startRaw
+        : new Date(periodEnd.getTime() - days * 24 * 60 * 60 * 1000);
+
+    if (periodStart.getTime() >= periodEnd.getTime()) {
+      return { ok: false, error: 'periodStart must be before periodEnd' };
+    }
+
+    const existing = await this.prisma.billingInvoice.findFirst({
+      where: { accountId, periodStart, periodEnd },
+    });
+    if (existing) {
+      return { ok: true, invoice: existing, created: false };
+    }
+
+    const txs = await this.prisma.transaction.findMany({
+      where: {
+        startedAt: { gte: periodStart, lte: periodEnd },
+        stoppedAt: { not: null },
+        totalCost: { not: null },
+        location: { accountId },
+        invoiceLine: null,
+      },
+      include: {
+        charger: { select: { chargerId: true } },
+      },
+      orderBy: { startedAt: 'asc' },
+    });
+
+    if (!txs.length) {
+      return { ok: false, error: 'no billable transactions in range' };
+    }
+
+    const currency = String(txs.find(t => t.currency)?.currency ?? 'GBP');
+    let totalEnergy = 0;
+    let totalIdleMinutes = 0;
+    let totalCost = 0;
+
+    for (const t of txs) {
+      totalEnergy += Number(t.totalEnergyKwh ?? 0);
+      totalIdleMinutes += Number(t.totalIdleMinutes ?? 0);
+      totalCost += Number(t.totalCost ?? 0);
+    }
+
+    const invoice = await this.prisma.billingInvoice.create({
+      data: {
+        accountId,
+        periodStart,
+        periodEnd,
+        currency,
+        totalEnergyKwh: new Prisma.Decimal(totalEnergy),
+        totalIdleMinutes,
+        totalCost: new Prisma.Decimal(totalCost),
+        totalSessions: txs.length,
+        notes: body?.notes ? String(body.notes).trim() : null,
+      },
+    });
+
+    await this.prisma.billingInvoiceLine.createMany({
+      data: txs.map(t => ({
+        invoiceId: invoice.id,
+        transactionId: t.id,
+        chargerId: t.charger?.chargerId ?? null,
+        idTag: t.idTag ?? null,
+        startedAt: t.startedAt,
+        stoppedAt: t.stoppedAt ?? null,
+        energyKwh: t.totalEnergyKwh ? new Prisma.Decimal(Number(t.totalEnergyKwh)) : null,
+        idleMinutes: t.totalIdleMinutes ?? null,
+        amount: t.totalCost ? new Prisma.Decimal(Number(t.totalCost)) : null,
+      })),
+    });
+
+    await this.logAction(req, 'billing.invoice.generate', 'BillingInvoice', String(invoice.id), {
+      accountId,
+      periodStart,
+      periodEnd,
+      totalSessions: txs.length,
+      totalCost,
+    });
+
+    return { ok: true, created: true, invoice };
+  }
+
+  @Patch('billing/invoices/:id/status')
+  async updateBillingInvoiceStatus(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
+    const scope = await this.getAccountScope(req);
+    const invoiceId = Number(id);
+    if (!Number.isFinite(invoiceId)) return { ok: false, error: 'invalid invoice id' };
+
+    const statusRaw = String(body?.status ?? '').toUpperCase();
+    if (!['DRAFT', 'FINAL', 'PAID'].includes(statusRaw)) {
+      return { ok: false, error: 'invalid status' };
+    }
+
+    const invoice = await this.prisma.billingInvoice.findUnique({
+      where: { id: invoiceId },
+    });
+    if (!invoice) return { ok: false, error: 'invoice not found' };
+
+    if (scope.accountIds && !scope.accountIds.includes(invoice.accountId)) {
+      throw new ForbiddenException('invoice not in scope');
+    }
+
+    const data: Prisma.BillingInvoiceUpdateInput = { status: statusRaw as any };
+    if (statusRaw === 'FINAL') data.finalizedAt = new Date();
+    if (statusRaw === 'PAID') data.paidAt = new Date();
+
+    const updated = await this.prisma.billingInvoice.update({
+      where: { id: invoiceId },
+      data,
+    });
+
+    await this.logAction(req, 'billing.invoice.status', 'BillingInvoice', String(invoiceId), {
+      status: statusRaw,
+    });
+
+    return { ok: true, invoice: updated };
+  }
+
   /**
    * For the "Filter by OCPP Operation" UI (unique list of operations)
    */

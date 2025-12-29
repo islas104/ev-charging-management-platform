@@ -736,6 +736,10 @@
             <span class="left"><span class="icon">A</span>Analytics</span>
             <span class="badge">Drivers</span>
           </a>
+          <a href="#billing" id="navBilling">
+            <span class="left"><span class="icon">B</span>Billing</span>
+            <span class="badge">Invoices</span>
+          </a>
 
           <small>Management</small>
           <a href="#accounts" id="navAccounts">
@@ -1027,6 +1031,96 @@
                   <thead id="analyticsThead"></thead>
                   <tbody id="analyticsTbody">
                     <tr><td colspan="6" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- BILLING VIEW -->
+          <section id="viewBilling" style="display:none;">
+            <div class="section-title">Billing</div>
+            <div class="subtext">Generate invoices and track settlement status.</div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Generate invoice</div>
+                  <div class="subtext">Use a date range to create a draft invoice.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnBillingGenerate">Generate invoice</button>
+                </div>
+              </div>
+
+              <div style="padding: 16px;">
+                <div class="cards-2">
+                  <div class="card" style="min-height:auto;" id="billingAccountCard">
+                    <div class="label">Account ID</div>
+                    <input
+                      id="billingAccountInput"
+                      list="accountList"
+                      type="number"
+                      placeholder="1"
+                      style="margin-top:10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 14px; font-weight: 900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
+                    />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Range</div>
+                    <input
+                      id="billingRangeInput"
+                      type="text"
+                      value="30d"
+                      placeholder="30d"
+                      style="margin-top:10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 14px; font-weight: 900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
+                    />
+                  </div>
+                  <div class="card" style="min-height:auto;">
+                    <div class="label">Notes</div>
+                    <input
+                      id="billingNotesInput"
+                      type="text"
+                      placeholder="Optional notes"
+                      style="margin-top:10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); font-size: 14px; font-weight: 900; background: rgba(255,255,255,0.03); color: rgba(226,232,240,0.92); outline: none;"
+                    />
+                  </div>
+                </div>
+                <div class="meta" style="padding: 12px 0 0;">
+                  Tip: keep ranges consistent (e.g. 30d) to avoid duplicates.
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:14px;">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-title">Invoices</div>
+                  <div class="subtext">Latest invoices for your scope.</div>
+                </div>
+                <div class="row">
+                  <button class="btn secondary" id="btnBillingRefresh">Refresh invoices</button>
+                </div>
+              </div>
+
+              <div class="panel-header" style="border-bottom: 0; padding-top: 0;">
+                <div class="subtext" id="billingMeta">Last updated: —</div>
+              </div>
+
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">Invoice</th>
+                      <th style="min-width: 200px;">Account</th>
+                      <th style="min-width: 200px;">Period</th>
+                      <th style="min-width: 140px;">Sessions</th>
+                      <th style="min-width: 160px;">Total</th>
+                      <th style="min-width: 160px;">Status</th>
+                      <th style="min-width: 220px;">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody id="billingTbody">
+                    <tr><td colspan="7" style="color: rgba(226, 232, 240, 0.65);">Loading…</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -1573,6 +1667,7 @@
         navChargers: document.getElementById('navChargers'),
         navPricing: document.getElementById('navPricing'),
         navAnalytics: document.getElementById('navAnalytics'),
+        navBilling: document.getElementById('navBilling'),
         navAccounts: document.getElementById('navAccounts'),
         navLocations: document.getElementById('navLocations'),
         navTariffs: document.getElementById('navTariffs'),
@@ -1584,6 +1679,7 @@
         viewChargers: document.getElementById('viewChargers'),
         viewPricing: document.getElementById('viewPricing'),
         viewAnalytics: document.getElementById('viewAnalytics'),
+        viewBilling: document.getElementById('viewBilling'),
         viewAccounts: document.getElementById('viewAccounts'),
         viewLocations: document.getElementById('viewLocations'),
         viewTariffs: document.getElementById('viewTariffs'),
@@ -1642,6 +1738,16 @@
         analyticsSecondaryWrap: document.getElementById('analyticsSecondaryWrap'),
         analyticsTableTitle: document.getElementById('analyticsTableTitle'),
         analyticsTableSubtext: document.getElementById('analyticsTableSubtext'),
+
+        // billing
+        btnBillingGenerate: document.getElementById('btnBillingGenerate'),
+        btnBillingRefresh: document.getElementById('btnBillingRefresh'),
+        billingAccountInput: document.getElementById('billingAccountInput'),
+        billingAccountCard: document.getElementById('billingAccountCard'),
+        billingRangeInput: document.getElementById('billingRangeInput'),
+        billingNotesInput: document.getElementById('billingNotesInput'),
+        billingTbody: document.getElementById('billingTbody'),
+        billingMeta: document.getElementById('billingMeta'),
 
         // accounts
         btnCreateAccount: document.getElementById('btnCreateAccount'),
@@ -1769,6 +1875,9 @@
       let analyticsEnergyChartInstance = null;
       let analyticsSessionsChartInstance = null;
 
+      // billing cache
+      let billingCache = [];
+
       let accountsCache = [];
       let locationsCache = [];
       let tariffsCache = [];
@@ -1827,6 +1936,7 @@
         if (els.navUsers) els.navUsers.style.display = showUsers ? '' : 'none';
         if (els.userAccountCard) els.userAccountCard.style.display = showUsers ? '' : 'none';
         if (els.tariffAccountCard) els.tariffAccountCard.style.display = showUsers ? '' : 'none';
+        if (els.billingAccountCard) els.billingAccountCard.style.display = showUsers ? '' : 'none';
         if (!showUsers && (getViewFromHash() === 'users' || getViewFromHash() === 'accounts')) {
           location.hash = '#dashboard';
         }
@@ -1926,6 +2036,7 @@
         if (h.startsWith('chargers')) return 'chargers';
         if (h.startsWith('pricing')) return 'pricing';
         if (h.startsWith('analytics')) return 'analytics';
+        if (h.startsWith('billing')) return 'billing';
         if (h.startsWith('accounts')) return 'accounts';
         if (h.startsWith('locations')) return 'locations';
         if (h.startsWith('tariffs')) return 'tariffs';
@@ -1939,6 +2050,7 @@
         els.navChargers.classList.toggle('active', view === 'chargers');
         els.navPricing.classList.toggle('active', view === 'pricing');
         els.navAnalytics.classList.toggle('active', view === 'analytics');
+        els.navBilling.classList.toggle('active', view === 'billing');
         els.navAccounts.classList.toggle('active', view === 'accounts');
         els.navLocations.classList.toggle('active', view === 'locations');
         els.navTariffs.classList.toggle('active', view === 'tariffs');
@@ -1949,6 +2061,7 @@
         els.viewChargers.style.display = view === 'chargers' ? '' : 'none';
         els.viewPricing.style.display = view === 'pricing' ? '' : 'none';
         els.viewAnalytics.style.display = view === 'analytics' ? '' : 'none';
+        els.viewBilling.style.display = view === 'billing' ? '' : 'none';
         els.viewAccounts.style.display = view === 'accounts' ? '' : 'none';
         els.viewLocations.style.display = view === 'locations' ? '' : 'none';
         els.viewTariffs.style.display = view === 'tariffs' ? '' : 'none';
@@ -2569,6 +2682,75 @@
         renderAnalyticsCharts();
       }
 
+      function renderBilling() {
+        if (!els.billingTbody) return;
+        const items = Array.isArray(billingCache) ? billingCache : [];
+        if (!items.length) {
+          els.billingTbody.innerHTML = `<tr><td colspan="7" style="color: rgba(226, 232, 240, 0.65);">No invoices yet.</td></tr>`;
+          return;
+        }
+
+        els.billingTbody.innerHTML = items.map(inv => {
+          const period = `${fmtDate(inv.periodStart)} → ${fmtDate(inv.periodEnd)}`;
+          const accountName = inv.account?.name ? `${inv.account.name} (#${inv.account.id})` : `#${inv.accountId}`;
+          return `
+            <tr>
+              <td style="font-weight:980;">#${inv.id}</td>
+              <td>${escapeHtml(accountName)}</td>
+              <td>${period}</td>
+              <td>${Number(inv.totalSessions ?? 0)}</td>
+              <td>${fmtMoney2(inv.totalCost, inv.currency)}</td>
+              <td>${escapeHtml(inv.status ?? '—')}</td>
+              <td>${fmtDate(inv.createdAt)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      async function loadBilling() {
+        const accountIdRaw = String(els.billingAccountInput?.value || '').trim();
+        const accountId = accountIdRaw ? Number(accountIdRaw) : null;
+        const params = new URLSearchParams();
+        if (isSuperAdmin() && Number.isFinite(accountId)) params.set('accountId', String(accountId));
+        const qs = params.toString();
+        const data = await fetchJson(`${API_BASE}/admin/billing/invoices${qs ? `?${qs}` : ''}`);
+        billingCache = Array.isArray(data) ? data : [];
+        if (els.billingMeta) {
+          els.billingMeta.textContent = `Last updated: ${new Date().toLocaleString()}`;
+        }
+        renderBilling();
+      }
+
+      async function generateBillingInvoice() {
+        const range = String(els.billingRangeInput?.value || '30d').trim() || '30d';
+        const notes = String(els.billingNotesInput?.value || '').trim();
+        const accountIdRaw = String(els.billingAccountInput?.value || '').trim();
+        const accountId = accountIdRaw ? Number(accountIdRaw) : null;
+
+        if (isSuperAdmin() && !Number.isFinite(accountId)) {
+          toast('warn', 'Missing fields', 'Account ID is required for invoice generation.');
+          return;
+        }
+
+        const res = await fetchJson(`${API_BASE}/admin/billing/invoices/generate`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            accountId: Number.isFinite(accountId) ? accountId : undefined,
+            range,
+            notes: notes || undefined,
+          }),
+        });
+
+        if (res?.ok === false) {
+          toast('error', 'Generate failed', String(res?.error || 'Unknown error'));
+          return;
+        }
+
+        toast('success', 'Invoice ready', res?.created ? 'Draft invoice created.' : 'Invoice already exists.');
+        await loadBilling();
+      }
+
       function renderAccounts() {
         if (!els.accountsTbody) return;
         const items = Array.isArray(accountsCache) ? accountsCache : [];
@@ -3104,6 +3286,9 @@
         if (view === 'analytics') {
           loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
         }
+        if (view === 'billing') {
+          loadBilling().catch(err => toast('error', 'Billing failed', String(err?.message || err)));
+        }
         if (view === 'accounts') {
           loadAccounts().catch(err => toast('error', 'Accounts failed', String(err?.message || err)));
         }
@@ -3198,6 +3383,14 @@
 
       els.analyticsMetricSelect?.addEventListener('change', () => {
         loadAnalytics('30d').catch(err => toast('error', 'Analytics failed', String(err?.message || err)));
+      });
+
+      els.btnBillingRefresh?.addEventListener('click', () => {
+        loadBilling().catch(err => toast('error', 'Billing failed', String(err?.message || err)));
+      });
+
+      els.btnBillingGenerate?.addEventListener('click', () => {
+        generateBillingInvoice().catch(err => toast('error', 'Billing failed', String(err?.message || err)));
       });
 
       els.btnAccountsRefresh?.addEventListener('click', () => {
@@ -3381,6 +3574,8 @@
             await loadPricing();
           } else if (view === 'analytics') {
             await loadAnalytics('30d');
+          } else if (view === 'billing') {
+            await loadBilling();
           } else if (view === 'accounts') {
             await loadAccounts();
           } else if (view === 'locations') {
