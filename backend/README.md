@@ -104,16 +104,23 @@ Easee Adapter (REST)
 Set the Easee adapter environment variables in `backend/.env`:
 
 - `EASEE_ENABLED=true`
-- `EASEE_BASE_URL=https://api.easee.cloud`
+- `EASEE_BASE_URL=https://api.easee.com`
 - `EASEE_USERNAME=...`
 - `EASEE_PASSWORD=...`
 - `EASEE_POLL_SECONDS=20`
 - `EASEE_CHARGERS_PATH=/api/chargers`
+- `EASEE_ACCOUNT_ID=...` (account to own Easee locations)
+- `EASEE_SITES_PATH=/api/sites` (list sites)
+- `EASEE_SITE_CHARGERS_PATH_TEMPLATE=/api/sites/{siteId}/chargers`
+- `EASEE_SITE_DETAIL_PATH_TEMPLATE=.../sites/{siteId}`
+- `EASEE_DEFAULT_LOCATION_ADDRESS=...` (optional fallback)
+- `EASEE_DEFAULT_LOCATION_LATITUDE=...`
+- `EASEE_DEFAULT_LOCATION_LONGITUDE=...`
 
 Command paths are provider-specific. Set these to the correct Easee endpoints once confirmed:
 
-- `EASEE_START_PATH_TEMPLATE=.../chargers/{chargerId}/...`
-- `EASEE_STOP_PATH_TEMPLATE=.../chargers/{chargerId}/...`
+- `EASEE_START_PATH_TEMPLATE=/api/chargers/{chargerId}/commands/start_charging`
+- `EASEE_STOP_PATH_TEMPLATE=/api/chargers/{chargerId}/commands/stop_charging`
 - `EASEE_DYNAMIC_CURRENT_PATH_TEMPLATE=.../chargers/{chargerId}/...`
 
 ---

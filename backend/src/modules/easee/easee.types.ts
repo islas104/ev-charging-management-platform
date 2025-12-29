@@ -16,4 +16,7 @@ export type EaseeCharger = {
 export type EaseeSite = {
   id?: string;
   name?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
 };

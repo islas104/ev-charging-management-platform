@@ -48,6 +48,7 @@ model Location {
   id              Int       @id @default(autoincrement())
   accountId       Int
   operatorAccountId Int?
+  externalId      String?
   name            String
   address         String
   latitude        Decimal   @db.Decimal(9, 6)
@@ -64,6 +65,8 @@ model Location {
   chargers        Charger[]
   qrCodes         QrCode[]
   transactions    Transaction[]
+
+  @@unique([accountId, externalId])
 }
 
 model Charger {

@@ -52,8 +52,39 @@ export class EaseeService implements OnModuleInit, OnModuleDestroy {
     return Number.isFinite(raw) && raw >= 10 ? raw : 20;
   }
 
+  private getAccountId() {
+    const raw = Number(this.config.get<string>('EASEE_ACCOUNT_ID') ?? '');
+    return Number.isFinite(raw) ? raw : null;
+  }
+
   private getChargersPath() {
     return String(this.config.get<string>('EASEE_CHARGERS_PATH') ?? '/api/chargers');
+  }
+
+  private getSitesPath() {
+    return String(this.config.get<string>('EASEE_SITES_PATH') ?? '').trim();
+  }
+
+  private getSiteChargersPathTemplate() {
+    return String(this.config.get<string>('EASEE_SITE_CHARGERS_PATH_TEMPLATE') ?? '').trim();
+  }
+
+  private getSiteDetailPathTemplate() {
+    return String(this.config.get<string>('EASEE_SITE_DETAIL_PATH_TEMPLATE') ?? '').trim();
+  }
+
+  private getDefaultAddress() {
+    return String(this.config.get<string>('EASEE_DEFAULT_LOCATION_ADDRESS') ?? '').trim();
+  }
+
+  private getDefaultLatitude() {
+    const raw = Number(this.config.get<string>('EASEE_DEFAULT_LOCATION_LATITUDE') ?? '');
+    return Number.isFinite(raw) ? raw : null;
+  }
+
+  private getDefaultLongitude() {
+    const raw = Number(this.config.get<string>('EASEE_DEFAULT_LOCATION_LONGITUDE') ?? '');
+    return Number.isFinite(raw) ? raw : null;
   }
 
   private getStartPathTemplate() {
@@ -130,6 +161,21 @@ export class EaseeService implements OnModuleInit, OnModuleDestroy {
     return template.replace('{chargerId}', encodeURIComponent(chargerId));
   }
 
+  private buildSitePath(template: string, siteId: string) {
+    if (!template) return '';
+    return template.replace('{siteId}', encodeURIComponent(siteId));
+  }
+
+  private async fetchChargersBySite(siteId: string) {
+    const template = this.getSiteChargersPathTemplate();
+    if (!template) return null;
+    const path = this.buildSitePath(template, siteId);
+    if (!path) return null;
+    const chargers = await this.request<EaseeCharger[]>(path);
+    if (!Array.isArray(chargers)) return null;
+    return chargers.map((c) => ({ ...c, siteId }));
+  }
+
   private async command<T>(path: string, body: Record<string, unknown>) {
     const token = await this.getToken();
     const url = `${this.getBaseUrl()}${path}`;
@@ -169,8 +215,142 @@ export class EaseeService implements OnModuleInit, OnModuleDestroy {
     ).trim();
   }
 
+  private resolveSiteId(charger: EaseeCharger) {
+    return String(
+      charger.siteId ??
+      (charger as any)?.siteKey ??
+      (charger as any)?.siteId ??
+      '',
+    ).trim();
+  }
+
+  private resolveSiteName(site: Record<string, any>) {
+    return String(site?.name ?? site?.siteName ?? site?.title ?? '').trim();
+  }
+
+  private resolveSiteAddress(site: Record<string, any>) {
+    const raw = site?.address;
+    if (raw && typeof raw === 'object') {
+      const parts = [
+        raw?.buildingNumber,
+        raw?.street,
+        raw?.area,
+        raw?.zip,
+        raw?.country?.name,
+      ].filter(Boolean);
+      return String(parts.join(', ')).trim();
+    }
+
+    return String(
+      raw ??
+      site?.street ??
+      site?.streetAddress ??
+      site?.addressLine ??
+      '',
+    ).trim();
+  }
+
+  private resolveSiteLatitude(site: Record<string, any>) {
+    const raw = Number(
+      site?.latitude ??
+      site?.lat ??
+      site?.latitudeDecimal ??
+      site?.address?.latitude ??
+      '',
+    );
+    return Number.isFinite(raw) ? raw : null;
+  }
+
+  private resolveSiteLongitude(site: Record<string, any>) {
+    const raw = Number(
+      site?.longitude ??
+      site?.lng ??
+      site?.longitudeDecimal ??
+      site?.address?.longitude ??
+      '',
+    );
+    return Number.isFinite(raw) ? raw : null;
+  }
+
+  private async fetchSites() {
+    const sitesPath = this.getSitesPath();
+    if (!sitesPath) return new Map<string, Record<string, any>>();
+    const sites = await this.request<Record<string, any>[]>(sitesPath);
+    const siteMap = new Map<string, Record<string, any>>();
+    if (!Array.isArray(sites)) return siteMap;
+    for (const site of sites) {
+      const id = String(site?.id ?? site?.siteId ?? site?.siteKey ?? '').trim();
+      if (!id) continue;
+      siteMap.set(id, site);
+    }
+    return siteMap;
+  }
+
+  private async fetchSiteDetail(siteId: string) {
+    const template = this.getSiteDetailPathTemplate();
+    if (!template) return null;
+    const path = this.buildSitePath(template, siteId);
+    if (!path) return null;
+    return this.request<Record<string, any>>(path);
+  }
+
+  private async ensureLocation(accountId: number, siteId: string, siteData: Record<string, any>) {
+    const name = this.resolveSiteName(siteData) || `Easee Site ${siteId}`;
+    let address = this.resolveSiteAddress(siteData);
+    let latitude = this.resolveSiteLatitude(siteData);
+    let longitude = this.resolveSiteLongitude(siteData);
+
+    if (!address) address = this.getDefaultAddress();
+    if (!Number.isFinite(latitude ?? NaN)) latitude = this.getDefaultLatitude();
+    if (!Number.isFinite(longitude ?? NaN)) longitude = this.getDefaultLongitude();
+
+    if (!address || latitude === null || longitude === null) {
+      this.logger.warn(`Skipping site ${siteId}: missing address/lat/lng`);
+      return null;
+    }
+
+    const location = await this.prisma.location.upsert({
+      where: {
+        accountId_externalId: {
+          accountId,
+          externalId: siteId,
+        },
+      },
+      update: {
+        name,
+        address,
+        latitude,
+        longitude,
+      },
+      create: {
+        accountId,
+        externalId: siteId,
+        name,
+        address,
+        latitude,
+        longitude,
+        access: 'PUBLIC',
+        visibility: 'LISTED',
+      },
+    });
+
+    return location;
+  }
+
   private async syncChargers() {
-    const chargers = await this.request<EaseeCharger[]>(this.getChargersPath());
+    const accountId = this.getAccountId();
+    const siteMap = await this.fetchSites();
+    let chargers: EaseeCharger[] = [];
+    if (siteMap.size > 0 && this.getSiteChargersPathTemplate()) {
+      for (const [siteId] of siteMap.entries()) {
+        const siteChargers = await this.fetchChargersBySite(siteId);
+        if (siteChargers && siteChargers.length) {
+          chargers = chargers.concat(siteChargers);
+        }
+      }
+    } else {
+      chargers = await this.request<EaseeCharger[]>(this.getChargersPath());
+    }
     if (!Array.isArray(chargers) || chargers.length === 0) return;
 
     const now = new Date();
@@ -179,17 +359,36 @@ export class EaseeService implements OnModuleInit, OnModuleDestroy {
       if (!chargerId) continue;
 
       const status = this.mapStatus(ch.status, ch.isOnline);
+      let locationId: number | null = null;
+
+      if (accountId && Number.isFinite(accountId)) {
+        const siteId = this.resolveSiteId(ch);
+        if (siteId) {
+          let siteData = siteMap.get(siteId) ?? null;
+          if (!siteData) {
+            siteData = await this.fetchSiteDetail(siteId);
+            if (siteData) siteMap.set(siteId, siteData);
+          }
+          if (siteData) {
+            const location = await this.ensureLocation(accountId, siteId, siteData);
+            locationId = location?.id ?? null;
+          }
+        }
+      }
+
       await this.prisma.charger.upsert({
         where: { chargerId },
         update: {
           protocol: 'easee',
           lastSeenAt: status === 'Unavailable' ? null : now,
+          ...(locationId ? { locationId } : {}),
         },
         create: {
           chargerId,
           protocol: 'easee',
           registered: true,
           lastSeenAt: status === 'Unavailable' ? null : now,
+          ...(locationId ? { locationId } : {}),
         },
       });
 
