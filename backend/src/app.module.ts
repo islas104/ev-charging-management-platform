@@ -13,6 +13,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { BootstrapService } from './modules/bootstrap/bootstrap.service';
+import { EaseeModule } from './modules/easee/easee.module';
 
 @Module({
   imports: [
@@ -38,6 +39,16 @@ import { BootstrapService } from './modules/bootstrap/bootstrap.service';
         IDEMPOTENCY_TTL_HOURS: Joi.number().default(24),
         REMOTE_COMMAND_TTL_SECONDS: Joi.number().default(45),
         SEED_DEFAULTS: Joi.boolean().default(true),
+        EASEE_ENABLED: Joi.boolean().default(false),
+        EASEE_BASE_URL: Joi.string().allow('').default('https://api.easee.cloud'),
+        EASEE_USERNAME: Joi.string().allow('').default(''),
+        EASEE_PASSWORD: Joi.string().allow('').default(''),
+        EASEE_ACCESS_TOKEN: Joi.string().allow('').default(''),
+        EASEE_POLL_SECONDS: Joi.number().default(20),
+        EASEE_CHARGERS_PATH: Joi.string().allow('').default('/api/chargers'),
+        EASEE_START_PATH_TEMPLATE: Joi.string().allow('').default(''),
+        EASEE_STOP_PATH_TEMPLATE: Joi.string().allow('').default(''),
+        EASEE_DYNAMIC_CURRENT_PATH_TEMPLATE: Joi.string().allow('').default(''),
       }),
     }),
     ThrottlerModule.forRoot({
@@ -63,6 +74,7 @@ import { BootstrapService } from './modules/bootstrap/bootstrap.service';
       },
     }),
     OcppModule,
+    EaseeModule,
     AdminModule,
     AuthModule,
   ],

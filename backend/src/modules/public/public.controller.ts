@@ -4,6 +4,7 @@ import { OcppConnectionRegistry } from '../ocpp/ocpp.registry';
 import { OcppMessageType } from '../ocpp/types/ocpp-message';
 import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
+import { EaseeService } from '../easee/easee.service';
 import { checkIdempotency, storeIdempotency } from '../../common/utils/idempotency';
 import type { Request } from 'express';
 
@@ -12,6 +13,7 @@ export class PublicController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly registry: OcppConnectionRegistry,
+    private readonly easee: EaseeService,
   ) {}
 
   private getIdempotencyKey(req: Request) {
@@ -125,6 +127,35 @@ export class PublicController {
     if (!qr || !qr.active) return { ok: false, error: 'QR not found' };
     if (!qr.charger) return { ok: false, error: 'QR not linked to a charger' };
 
+    if (qr.charger.protocol === 'easee') {
+      try {
+        await this.easee.startCharging(qr.charger.chargerId);
+      } catch (err) {
+        return { ok: false, error: String((err as Error)?.message ?? err) };
+      }
+
+      const chargerRow = await this.prisma.charger.findUnique({
+        where: { chargerId: qr.charger.chargerId },
+        select: { id: true },
+      });
+
+      if (chargerRow) {
+        await this.prisma.remoteCommand.create({
+          data: {
+            chargerId: chargerRow.id,
+            command: 'StartTransaction',
+            messageId: randomUUID(),
+            payload: { idTag } as unknown as Prisma.InputJsonValue,
+            status: 'Sent',
+          },
+        });
+      }
+
+      const res = { ok: true, messageId: null, provider: 'easee' };
+      await this.storeIdempotency(req, 'public.qr.start', { code, ...body }, res);
+      return res;
+    }
+
     const ttlRaw = Number(process.env.REMOTE_COMMAND_TTL_SECONDS ?? 45);
     const ttlSeconds = Number.isFinite(ttlRaw) && ttlRaw > 0 ? ttlRaw : 45;
     const recent = await this.prisma.remoteCommand.findFirst({
@@ -205,6 +236,35 @@ export class PublicController {
     });
     if (!qr || !qr.active) return { ok: false, error: 'QR not found' };
     if (!qr.charger) return { ok: false, error: 'QR not linked to a charger' };
+
+    if (qr.charger.protocol === 'easee') {
+      try {
+        await this.easee.stopCharging(qr.charger.chargerId);
+      } catch (err) {
+        return { ok: false, error: String((err as Error)?.message ?? err) };
+      }
+
+      const chargerRow = await this.prisma.charger.findUnique({
+        where: { chargerId: qr.charger.chargerId },
+        select: { id: true },
+      });
+
+      if (chargerRow) {
+        await this.prisma.remoteCommand.create({
+          data: {
+            chargerId: chargerRow.id,
+            command: 'StopTransaction',
+            messageId: randomUUID(),
+            payload: { transactionId: txId } as unknown as Prisma.InputJsonValue,
+            status: 'Sent',
+          },
+        });
+      }
+
+      const res = { ok: true, messageId: null, provider: 'easee' };
+      await this.storeIdempotency(req, 'public.qr.stop', { code, ...body }, res);
+      return res;
+    }
 
     const ttlRaw = Number(process.env.REMOTE_COMMAND_TTL_SECONDS ?? 45);
     const ttlSeconds = Number.isFinite(ttlRaw) && ttlRaw > 0 ? ttlRaw : 45;

@@ -96,7 +96,25 @@ Sec-WebSocket-Protocol
 Supported:
 - `ocpp1.6`
 
-Easee One is supported with OCPP 1.6.
+Easee One integrates via the Easee Cloud REST API (site owner flow), not direct OCPP.
+
+Easee Adapter (REST)
+--------------------
+
+Set the Easee adapter environment variables in `backend/.env`:
+
+- `EASEE_ENABLED=true`
+- `EASEE_BASE_URL=https://api.easee.cloud`
+- `EASEE_USERNAME=...`
+- `EASEE_PASSWORD=...`
+- `EASEE_POLL_SECONDS=20`
+- `EASEE_CHARGERS_PATH=/api/chargers`
+
+Command paths are provider-specific. Set these to the correct Easee endpoints once confirmed:
+
+- `EASEE_START_PATH_TEMPLATE=.../chargers/{chargerId}/...`
+- `EASEE_STOP_PATH_TEMPLATE=.../chargers/{chargerId}/...`
+- `EASEE_DYNAMIC_CURRENT_PATH_TEMPLATE=.../chargers/{chargerId}/...`
 
 ---
 

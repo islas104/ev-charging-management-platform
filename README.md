@@ -38,6 +38,11 @@ Repository Structure
 Key Capabilities
 ----------------
 
+Easee Integration
+-----------------
+
+Easee chargers are integrated via the Easee Cloud REST API (site owner flow). This keeps the internal OCPP-centric domain model while avoiding direct charger WebSocket configuration.
+
 ### Backend
 
 -   OCPP 1.6 WebSocket gateway
